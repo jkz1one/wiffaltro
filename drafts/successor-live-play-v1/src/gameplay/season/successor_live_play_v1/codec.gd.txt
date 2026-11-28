@@ -164,11 +164,12 @@ static func _runtime_context(season: SeasonState, d1: bool=false) -> bool:
 	if paired_earned and (not OS.has_feature("wiffaltro_catalog_forward_v1") or not Admissions.paired_draft_only(season)): return false
 	if Admissions.paired_draft_only(season):
 		if (season.career.start_basis.get("kind")==CommonStart.KIND and not paired_earned) or not season.ownership._events.is_empty(): return false
-		# The installed owner may hold either leg of the first pair. The
-		# exact fixture and full paired verifier still own physical evidence.
-		if paired_earned and season.get_script()==Runtime and (season.round_index not in [0,1] \
+		# The installed owner may settle the first pair. The exact fixture,
+		# original pair verifier and wallet replay still own the evidence.
+		if paired_earned and season.get_script()==Runtime and (season.round_index not in [0,1,2] \
 				or (season.round_index==0 and not season.physical.reports.is_empty()) \
 				or (season.round_index==1 and not season.physical.pending.is_empty() and not return_session_ready(season)) \
+				or (season.round_index==2 and not season.physical.pending.is_empty()) \
 				or not season.physical.needed.is_empty() or season.physical.projecting): return false
 		if season.round_index==10:
 			if not (_completed_postseason_shape(season) if season.phase==SeasonState.Phase.COMPLETE else _semifinal_checkpoint_shape(season)): return false
@@ -217,12 +218,15 @@ static func _first_leg_shape(season: SeasonState) -> bool:
 # The installed owner cold replays every shop command through the original
 # build reducer. This shape must not freeze the private QA purchase pattern.
 static func _earned_pair_first_shop_prefix(build: SeasonBuild) -> bool:
-	if build==null or build._bank==null or build._events.size()<2 or build._events.size()>130 \
-			or not _first_shop_journal(build,0) or build._visit.get("number")!=1: return false
+	if build==null or build._bank==null or build._visit.get("number")!=1: return false
+	var count: int=build._events.size()
+	if build._visit.get("open",false)!=(count>2): return false
+	return _earned_pair_shop_events(build,count)
+
+static func _earned_pair_shop_events(build: SeasonBuild, end: int) -> bool:
+	if end<2 or end>130 or end>build._events.size() or not _first_shop_journal(build,0): return false
 	var events: Array=build._events
-	if events.size()==2: return not build._visit.get("open",false)
-	if not build._visit.get("open",false): return false
-	for index: int in range(2,events.size()):
+	for index: int in range(2,end):
 		var cmd: Dictionary=events[index]
 		if not whole(cmd.get("rev"),index,index) or not SeasonBuild.SHOP_OPS.has(cmd.get("op","")): return false
 		if index==2:
@@ -254,11 +258,26 @@ static func _pair_settled_shape(season: SeasonState) -> bool:
 		if physical.reports[index].get("fixture")!=[1,2,4,5][index]: return false
 	var build: SeasonBuild=season.build
 	if not whole(build._visit.get("number"),2,2) or build._visit.get("open")!=false: return false
+	if CommonStart.detached_earned_doubleheader(season.career.start_basis):
+		return _earned_pair_settled_journal(build)
 	if _paid_pair_journal(build,2): return true
 	# This exact no-spend journal permits the already shape-checked authored
 	# next-leg prefix, not a new settlement or later round. Detached queued
 	# reports are replayed by General; the detached type cannot pass scope().
 	return not unpurchased_next_pair_kind(season).is_empty()
+
+# The secured earned owner replays both signed rounds and every actual
+# Visit 1 command. Neither the shape nor an empty Visit 2 is payout proof.
+static func _earned_pair_settled_journal(build: SeasonBuild) -> bool:
+	if build==null or build._bank==null: return false
+	var finish: int=build._events.size()-2
+	if not _earned_pair_shop_events(build,finish): return false
+	var reward: Dictionary=build._events[finish]
+	var admission: Dictionary=build._events[finish+1]
+	var bank: Dictionary=build._bank.view().rewards
+	return reward.get("op")=="successor_reward" and reward.get("id")=="game:3" \
+		and admission.get("op")=="exotic_admit" and admission.get("id")=="exotic:3" \
+		and keys(bank,["0","3"]) and bank["0"] is bool and bank["3"] is bool
 
 # Derive the optional no-spend start from the authenticated journal, not a
 # shifted paid revision. Geometry still comes from the authored schedule.

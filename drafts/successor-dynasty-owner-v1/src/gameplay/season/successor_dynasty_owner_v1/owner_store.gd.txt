@@ -3260,11 +3260,12 @@ static func _installed_named_base_view(body: PackedByteArray,value: Dictionary,d
 		var pending: Dictionary=draft.physical.pending
 		var state: String="doubleheader_draft" if pending.is_empty() else "doubleheader_held"
 		if draft.round_index==1: state="doubleheader_paid" if pending.is_empty() else "doubleheader_return_held"
+		if draft.round_index==2: state="doubleheader_pair_paid"
 		return {"state":state,"bytes":body.duplicate(),"picks":draft.picks.duplicate(),"offers":draft.offers(),
 			"credits":int(value.aggregate.currency),"cash":draft.cash(),"cpu_reports":pending.get("reports",[]).size(),
 			"can_shop":state=="doubleheader_paid" and EarnedNamedBase.paired_shop_window(draft),
 			"can_return":state=="doubleheader_paid" and EarnedNamedBase.paired_return_ready(draft),
-			"results":draft.results.duplicate(true) if draft.round_index==1 else []}
+			"results":draft.results.duplicate(true) if draft.round_index in [1,2] else []}
 	var view:=_installed_equipment_view(body,value,draft)
 	view.equipment_award=int(value.receipt.total)
 	if EarnedNamedBase.target(value)=="scramble":
@@ -5896,12 +5897,13 @@ static func _installed_dugout_d1_pending(expected: PackedByteArray) -> Dictionar
 		if source_equipment.is_empty(): return {}
 		var draft: SeasonState=source_equipment.draft
 		if source_equipment.has("named_base") and EarnedNamedBase.target(source_equipment.named_base)=="doubleheader":
-			if draft.round_index!=0 or draft.physical.pending.is_empty(): return {}
+			var leg: int=draft.round_index
+			if leg not in [0,1] or draft.physical.pending.is_empty(): return {}
 			var pending: Dictionary=draft.physical.pending
 			var next:=EarnedNamedBase.Paired.next_npc_fixture(draft)
-			if next.is_empty()!=(pending.reports.size()==2): return {}
+			if next.is_empty()!=(pending.reports.size()==2) or pending.human[0]!=3*leg: return {}
 			return {"source":source_equipment,"session":draft,"projection":{} if next.is_empty() else {"fixture":next},
-				"round":0,"count":pending.reports.size(),"managed_id":0,"paired_game":true}
+				"round":leg,"count":pending.reports.size(),"managed_id":3*leg,"paired_game":true}
 		var job:=EquipmentBase.pending_plan(draft)
 		if job.is_empty(): return {}
 		job.merge({"source":source_equipment,"round":draft.round_index,
@@ -5941,7 +5943,7 @@ static func _installed_dugout_d1_project_pending(session: SeasonState) -> Dictio
 static func _installed_dugout_d1_round_app(app: Variant) -> bool:
 	return is_instance_valid(app) and app.get_script()==load("res://src/presentation/season/successor_dynasty_owner_v1/app.gd") \
 		and app.career_owner==null and app.season==null and not is_instance_valid(app.lab) \
-		and app.installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","final_unpaid","dynasty_pending","equipment_held","earnings_held","scramble_held","doubleheader_held"]
+		and app.installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","final_unpaid","dynasty_pending","equipment_held","earnings_held","scramble_held","doubleheader_held","doubleheader_return_held"]
 
 # Only the actual OrdinaryRunner's completion for the projected fixture can
 # append one receipt. No score/fixture selector or fallback save is exposed.
@@ -6246,10 +6248,13 @@ static func settle_installed_dugout_d1_round(app: Variant) -> Dictionary:
 	if round_plan.is_empty() or round_plan.projection.has("fixture"): return {}
 	if round_plan.get("paired_game",false):
 		var source: SeasonState=round_plan.session
-		var paid: SeasonState=EarnedNamedBase.Paired.materialize_settlement(source,0)
-		if paid==null or not EarnedNamedBase._paired_current(paid): return {}
-		return _write_installed_doubleheader_checkpoint(round_plan.source,expected,paid,
-			[{"pending":source.physical.pending.duplicate(true),"shop":[]}])
+		var settled: Array=round_plan.source.named_base.get("rounds",[]).duplicate(true)
+		var leg: int=source.round_index
+		if leg not in [0,1] or settled.size()!=leg or round_plan.count!=2: return {}
+		var paid: SeasonState=EarnedNamedBase.Paired.materialize_settlement(source,leg)
+		if paid==null or paid.round_index!=leg+1 or not EarnedNamedBase._paired_current(paid): return {}
+		settled.append({"pending":source.physical.pending.duplicate(true),"shop":[]})
+		return _write_installed_doubleheader_checkpoint(round_plan.source,expected,paid,settled)
 	if round_plan.get("named_game",false):
 		var witness: Dictionary=_installed_named_snapshot(round_plan.source).current.physical.pending
 		var equipment_paid: SeasonState=round_plan.projection.candidate

@@ -180,6 +180,9 @@ static func _paired_opening(session: SeasonState) -> bool:
 
 static func _paired_current(session: SeasonState) -> bool:
 	if _paired_opening(session): return true
+	if session!=null and session.round_index==2:
+		return session.career!=null and Paired.Live.CommonStart.detached_earned_doubleheader(session.career.start_basis) \
+			and session.physical.pending.is_empty() and Paired.Live.scope(session)
 	if session==null or session.career==null or session.phase!=SeasonState.Phase.REGULAR \
 			or session.round_index!=1 or session.results.size()!=3 or session.player_results.size()!=1 \
 			or session.physical.reports.size()!=2: return false
@@ -228,7 +231,7 @@ static func capture_current(value: Dictionary,session: SeasonState) -> Dictionar
 static func _route_value(value: Variant) -> bool:
 	if not value is Dictionary: return false
 	if target(value)=="doubleheader" and (value.has("playoffs") \
-			or (value.has("rounds") and (not value.rounds is Array or value.rounds.size()!=1))): return false
+			or (value.has("rounds") and (not value.rounds is Array or value.rounds.size() not in [1,2]))): return false
 	var fields: Array=["kind","version","head","offer","current","aggregate","receipt"]
 	if value.has("rounds"):
 		if not value.rounds is Array or value.rounds.is_empty() or value.rounds.size()>Equipment.REGULAR_LIMIT: return false
@@ -282,6 +285,17 @@ static func local_draft(value: Variant, live: bool=false) -> SeasonState:
 			or Life.digest(basis)!=value.offer.get("basis_sha256"): return null
 	return session
 
+# Game 2 signs the persisted Game 1 and Shop state. Only the independently
+# replayed prefix may cross the same native JSON boundary as live play.
+static func _paired_return_native_prefix(draft: SeasonState) -> SeasonState:
+	if not paired_return_ready(draft): return null
+	var api:=Archive._owner()
+	var prefix: Dictionary=api.Adapter.Ordinary.capture(draft)
+	var native: Variant=api._bytes_value(JSON.stringify(prefix,"",true,true).to_utf8_buffer())
+	if prefix.is_empty() or not Archive.C.same(prefix,native): return null
+	var ready: SeasonState=api.Adapter.Ordinary.restore_common(native)
+	return ready if paired_return_ready(ready) else null
+
 # Re-derive both proven seasons and the exact close, then the draft and its
 # original picks. The supplied title, aggregate and page are never authority.
 static func replay(value: Variant, pages: Array) -> Dictionary:
@@ -328,9 +342,14 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 	for row: Variant in journal:
 		if not Archive.C.keys(row,["pending","shop"]) or not row.pending is Dictionary \
 				or not row.shop is Array or row.shop.size()>128: return {}
+		var leg: int=draft.round_index
+		if paired and leg==1:
+			if not row.shop.is_empty(): return {}
+			draft=_paired_return_native_prefix(draft)
+			if draft==null: return {}
 		draft.physical.pending=row.pending.duplicate(true)
 		if paired:
-			draft=Paired.materialize_settlement(draft,0)
+			draft=Paired.materialize_settlement(draft,leg)
 			if draft==null or not _paired_current(draft): return {}
 		else:
 			var plan:=Equipment.pending_plan(draft,true)
@@ -352,16 +371,9 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 	var physical: Variant=value.current.get("physical")
 	if not physical is Dictionary or not physical.get("pending") is Dictionary: return {}
 	if not physical.pending.is_empty():
-		# Game 2 was opened from a persisted Game 1 and Shop state. Recreate
-		# that native JSON boundary before verifying its signed fixture. The
-		# prefix below comes only from the replay, never the supplied state.
 		if paired and draft.round_index==1:
-			var api:=Archive._owner()
-			var prefix: Dictionary=api.Adapter.Ordinary.capture(draft)
-			var native: Variant=api._bytes_value(JSON.stringify(prefix,"",true,true).to_utf8_buffer())
-			if prefix.is_empty() or not Archive.C.same(prefix,native): return {}
-			draft=api.Adapter.Ordinary.restore_common(native)
-			if not paired_return_ready(draft): return {}
+			draft=_paired_return_native_prefix(draft)
+			if draft==null: return {}
 		draft.physical.pending=physical.pending.duplicate(true)
 		if not paired and Equipment.pending_plan(draft,true).is_empty(): return {}
 	computed.value.current=capture_current(computed.value,draft)
