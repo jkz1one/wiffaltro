@@ -65,6 +65,8 @@ static func start(source: SeasonState) -> Dictionary:
 	elif source.phase!=SeasonState.Phase.REGULAR: return {}
 	if source.round_index==1 and not Live.return_session_ready(source): return {}
 	if source.round_index==2 and not Live.next_first_session_ready(source): return {}
+	if source.round_index==3 and Live.CommonStart.detached_earned_doubleheader(source.career.start_basis) \
+			and not Live.earned_next_return_ready(source): return {}
 	if source.round_index==4 and not Live._unpurchased_completed_legs(source.build,4).is_empty(): return {}
 	if source.round_index==6 and not Live._signed_visit6_journal(source.build): return {}
 	if LATE_REGULAR.has(source.round_index) and not Live._paired_late_start(source): return {}

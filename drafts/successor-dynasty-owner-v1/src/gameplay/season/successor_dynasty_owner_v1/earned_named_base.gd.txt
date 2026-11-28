@@ -206,6 +206,9 @@ static func paired_next_opening_ready(session: SeasonState) -> bool:
 		and session.physical.pending.is_empty() and Paired.Live.next_first_session_ready(session) \
 		and session.pending_fixture().get("id")==6
 
+static func paired_next_return_ready(session: SeasonState) -> bool:
+	return paired_shop_window(session) and session.round_index==3 and Paired.Live.earned_next_return_ready(session)
+
 static func paired_shop_step(previous: SeasonState,command: Dictionary) -> SeasonState:
 	if not paired_shop_window(previous) or not Archive.C.primitive(command) \
 			or not SeasonBuild.SHOP_OPS.has(str(command.get("op",""))): return null
@@ -292,13 +295,13 @@ static func local_draft(value: Variant, live: bool=false) -> SeasonState:
 # The next fixture signs the persisted paid state. Only the independently
 # replayed prefix may cross the same native JSON boundary as live play.
 static func _paired_native_prefix(draft: SeasonState) -> SeasonState:
-	if not paired_return_ready(draft) and not paired_next_opening_ready(draft): return null
+	if not paired_return_ready(draft) and not paired_next_opening_ready(draft) and not paired_next_return_ready(draft): return null
 	var api:=Archive._owner()
 	var prefix: Dictionary=api.Adapter.Ordinary.capture(draft)
 	var native: Variant=api._bytes_value(JSON.stringify(prefix,"",true,true).to_utf8_buffer())
 	if prefix.is_empty() or not Archive.C.same(prefix,native): return null
 	var ready: SeasonState=api.Adapter.Ordinary.restore_common(native)
-	return ready if paired_return_ready(ready) or paired_next_opening_ready(ready) else null
+	return ready if paired_return_ready(ready) or paired_next_opening_ready(ready) or paired_next_return_ready(ready) else null
 
 # Re-derive both proven seasons and the exact close, then the draft and its
 # original picks. The supplied title, aggregate and page are never authority.
@@ -375,7 +378,7 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 	var physical: Variant=value.current.get("physical")
 	if not physical is Dictionary or not physical.get("pending") is Dictionary: return {}
 	if not physical.pending.is_empty():
-		if paired and draft.round_index in [1,2]:
+		if paired and draft.round_index in [1,2,3]:
 			draft=_paired_native_prefix(draft)
 			if draft==null: return {}
 		draft.physical.pending=physical.pending.duplicate(true)
