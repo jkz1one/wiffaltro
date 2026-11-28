@@ -663,11 +663,12 @@ func _installed_dugout_d1() -> void:
 			elif verified in [0,1,2]:
 				_bound_button(_body,"PLAY CPU PLAYOFF GAME %d OF 3"%(verified+1),Callable(app,"play_installed_dugout_d1_cpu").bind(draft.bytes.duplicate()))
 		return
-	if lane in ["doubleheader_club_semifinal_held","doubleheader_club_semifinals_held","doubleheader_club_semifinals_paid","doubleheader_club_managed_final_held","doubleheader_club_managed_final_paid","doubleheader_club_cpu_complete","doubleheader_club_cpu_closed"]:
+	if lane in ["doubleheader_club_semifinal_held","doubleheader_club_semifinals_held","doubleheader_club_semifinals_paid","doubleheader_club_managed_final_held","doubleheader_club_managed_final_paid","doubleheader_club_managed_final_closed","doubleheader_club_cpu_complete","doubleheader_club_cpu_closed"]:
 		var f: Dictionary=draft.club_semifinal
 		var finished: bool=lane in ["doubleheader_club_cpu_complete","doubleheader_club_cpu_closed"]
-		var closed: bool=lane=="doubleheader_club_cpu_closed"
-		var managed_paid: bool=lane=="doubleheader_club_managed_final_paid"
+		var managed_closed: bool=lane=="doubleheader_club_managed_final_closed"
+		var closed: bool=lane=="doubleheader_club_cpu_closed" or managed_closed
+		var managed_paid: bool=lane=="doubleheader_club_managed_final_paid" or managed_closed
 		var managed_final: bool=lane=="doubleheader_club_managed_final_held" or managed_paid
 		var heading: String="SEASON CLOSED" if closed else ("FINAL PAID" if managed_paid else ("FINAL SAVED" if finished or managed_final else ( \
 			"SEMIFINALS PAID" if lane=="doubleheader_club_semifinals_paid" else "SEMIFINAL SAVED")))
@@ -707,6 +708,12 @@ func _installed_dugout_d1() -> void:
 					var payment: Dictionary=draft.club_managed_final_paid
 					_note("%s won the championship."%SeasonState.TEAM_NAMES[int(payment.champion)])
 					_note("+%d Season Cash for your final %s."%[int(payment.cash)-int(payment.before),"win" if payment.club_won else "loss"])
+					if managed_closed:
+						var receipt: Dictionary=draft.close_receipt
+						_note("%d Club Credits banked at Season Close · %d finish + %d record + %d first title."%[
+							receipt.total,receipt.finish_award,receipt.record_bonus,receipt.first_bonus])
+					elif draft.close_available:
+						_bound_button(_body,"CLOSE DOUBLEHEADER SEASON",Callable(app,"request_installed_dugout_d1_close").bind(draft.bytes.duplicate()))
 				else:
 					_note("The final and its Season Cash have not settled.")
 					_bound_button(_body,"SETTLE FINAL",Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))

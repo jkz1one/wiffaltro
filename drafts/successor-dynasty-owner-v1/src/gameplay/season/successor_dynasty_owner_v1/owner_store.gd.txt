@@ -3348,7 +3348,8 @@ static func _installed_named_base_view(body: PackedByteArray,value: Dictionary,d
 		var managed_final: Dictionary=value.get("club_managed_final",{})
 		if not managed_final.is_empty(): state="doubleheader_club_managed_final_held"
 		var managed_payment: Dictionary=value.get("club_managed_final_paid",{})
-		if not managed_payment.is_empty(): state="doubleheader_club_managed_final_paid"
+		if not managed_payment.is_empty():
+			state="doubleheader_club_managed_final_closed" if value.has("club_close") else "doubleheader_club_managed_final_paid"
 		var final: Dictionary=value.get("club_cpu_final",{})
 		var final_score: Array=[]
 		var final_champion: int=-1
@@ -3361,13 +3362,13 @@ static func _installed_named_base_view(body: PackedByteArray,value: Dictionary,d
 		if not other.is_empty():
 			var report: Dictionary=other.report.get("physical",{})
 			other_score=[report.get("away_runs",-1),report.get("home_runs",-1)]
-		var closed: bool=state in ["doubleheader_cpu_closed","doubleheader_club_cpu_closed"]
+		var closed: bool=state in ["doubleheader_cpu_closed","doubleheader_club_cpu_closed","doubleheader_club_managed_final_closed"]
 		var close: Dictionary=value.get("club_close",value.get("cpu_close",{}))
 		return {"state":state,"bytes":body.duplicate(),"picks":draft.picks.duplicate(),"offers":draft.offers(),
 			"round":draft.round_index,"credits":int(close.aggregate.currency if closed else value.aggregate.currency),
 			"cash":int(managed_payment.cash) if not managed_payment.is_empty() else (int(paid.cash) if not paid.is_empty() else draft.cash()),
 			"cpu_reports":pending.get("reports",[]).size(),
-			"close_available":state in ["doubleheader_cpu_complete","doubleheader_club_cpu_complete"],
+			"close_available":state in ["doubleheader_cpu_complete","doubleheader_club_cpu_complete","doubleheader_club_managed_final_paid"],
 			"close_receipt":close.receipt.duplicate(true) if closed else {},
 			"cpu_playoff_reports":cpu.size(),"cpu_champion":draft.champion,
 			"playoff_seeds":draft.playoff_seeds.duplicate(),
@@ -5159,6 +5160,30 @@ static func complete_installed_doubleheader_qualified_loss(app: Variant) -> Dict
 	if source.is_empty() or not source.named_base.has("club_cpu_final") or source.named_base.has("club_close"): return {}
 	var value: Dictionary=source.named_base.duplicate()
 	var close:=EarnedNamedBase.club_cpu_close_record(value,source.draft)
+	if close.is_empty(): return {}
+	value.club_close=close
+	var staged:=_native_materialize(value)
+	if staged.is_empty() or not EarnedNamedBase._route_value(staged.value) or not Codec.same(staged.value.club_close,close): return {}
+	var again:=_installed_dugout_d1_source()
+	if again.is_empty() or again.bytes!=expected or again.pages!=source.pages or not _matches(expected): return {}
+	saving=true
+	var saved:=_write_exact_bytes(staged.bytes,expected)
+	saving=false
+	if not saved: return {}
+	_installed_named_base_bound=staged.bytes
+	_remember_verified_doubleheader({"bytes":staged.bytes,"named_base":staged.value})
+	return _installed_named_base_view(staged.bytes,staged.value,source.draft)
+
+# No original pages, semifinals, held result or paid wallet are replaced.
+static func complete_installed_doubleheader_managed_final(app: Variant) -> Dictionary:
+	if not _installed_dugout_d1_entry_app(app) or app.season!=null or _ticket!=null \
+			or app.installed_dugout_d1_draft.get("state")!="doubleheader_club_managed_final_paid" \
+			or not app.installed_dugout_d1_draft.get("close_available",false): return {}
+	var expected: PackedByteArray=app.saved_bytes
+	var source:=_bound_installed_club_semifinal(expected)
+	if source.is_empty() or not source.named_base.has("club_managed_final_paid") or source.named_base.has("club_close"): return {}
+	var value: Dictionary=source.named_base.duplicate()
+	var close:=EarnedNamedBase.club_managed_close_record(value,source.draft)
 	if close.is_empty(): return {}
 	value.club_close=close
 	var staged:=_native_materialize(value)

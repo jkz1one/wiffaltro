@@ -571,6 +571,23 @@ static func _earned_club_managed_final_result(paid: Dictionary,value: Variant) -
 		return {}
 	return {"candidate":candidate,"before":before_wallet.cash,"wallet":after,"champion":winner,"club_won":winner==0}
 
+# Only the detached terminal managed Final can feed the installed Close.
+static func _earned_club_managed_final_close_scope(season: SeasonState) -> bool:
+	if season==null or season.get_script()!=PrivateEarnedClubSemifinal or season.career==null \
+			or not Live.CommonStart.detached_earned_doubleheader(season.career.start_basis) \
+			or season.phase!=SeasonState.Phase.COMPLETE or season.round_index!=10 or season.champion<0 or season.champion>5 \
+			or season.results.size()!=33 or season.player_results.size()!=12 or season.physical==null \
+			or season.physical.projecting or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() \
+			or not season.physical.error.is_empty() or season.physical.cursor!=21 or season.physical.reports.size()!=21: return false
+	var semi: Dictionary=season.player_results[10]
+	var final: Dictionary=season.player_results[11]
+	var wallet: Dictionary=season.build._bank.view()
+	return Live.whole(semi.get("id"),30,31) and SeasonState._winner(semi)==0 \
+		and _bound_report(season.physical.reports[20],61-int(semi.id)) and wallet.rewards.get(str(int(semi.id)))==true \
+		and Live.whole(final.get("id"),32,32) and final.get("neutral")==true and Live.same(final,season.results.back()) \
+		and (final.get("home")==0 or final.get("away")==0) and SeasonState._winner(final)==season.champion \
+		and wallet.rewards.get("32")== (season.champion==0) and not Live.scope(season)
+
 # A CPU final consumes fixture 32 only after the native two-semifinal
 # projection has proved elimination and emitted the exact final request.
 static func _earned_club_cpu_final_job(paid: Dictionary) -> Dictionary:

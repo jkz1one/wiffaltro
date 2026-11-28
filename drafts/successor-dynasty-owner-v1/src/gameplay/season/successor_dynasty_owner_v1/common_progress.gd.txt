@@ -195,7 +195,16 @@ static func fold_installed_doubleheader_qualified_loss(before: Dictionary, seaso
 			or not paired._earned_club_cpu_final_close_scope(season): return {}
 	return _fold_native(before,"ordinary",season,close_id,3,"complete",0,false,true)
 
-static func _fold_native(before: Dictionary, side: String, season: SeasonState, close_id: String, fold_index: int, reason: String, installed_dugout_tier: int=0, installed_doubleheader_missed: bool=false, installed_doubleheader_qualified_loss: bool=false) -> Dictionary:
+static func fold_installed_doubleheader_managed_final(before: Dictionary,season: SeasonState,close_id: String) -> Dictionary:
+	var paired: Script=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	if not paired._earned_club_managed_final_close_scope(season) or not valid(before) or before.closed!=2 \
+			or not C.same(season.league_rules,LeagueRules.capture("doubleheader")): return {}
+	var basis: Dictionary=season.career.start_basis
+	if basis.get("ordinal")!=3 or basis.get("common_sequence")!=2 \
+			or close_id!="%s:3:close"%basis.get("lineage","") or not _close_id(close_id): return {}
+	return _fold_native(before,"ordinary",season,close_id,3,"complete",0,false,false,true)
+
+static func _fold_native(before: Dictionary, side: String, season: SeasonState, close_id: String, fold_index: int, reason: String, installed_dugout_tier: int=0, installed_doubleheader_missed: bool=false, installed_doubleheader_qualified_loss: bool=false, installed_doubleheader_managed: bool=false) -> Dictionary:
 	var proof: Dictionary=ClubSeasonRecord.capture(season)
 	var summary: Dictionary=ClubSeasonRecord.analyze(proof)
 	if summary.is_empty() or (reason=="complete")!=(season.phase==SeasonState.Phase.COMPLETE) or (reason=="complete")!=(summary.finish!="unfinished"): return {}
@@ -207,6 +216,9 @@ static func _fold_native(before: Dictionary, side: String, season: SeasonState, 
 	var paired_complete: bool=side=="ordinary" and league=="doubleheader" and reason=="complete" and summary.finish=="semifinal" and Adapter.Ordinary._completed_postseason_shape(season)
 	if installed_dugout_tier!=0:
 		if side!="ordinary" or league!="dugout" or tier!=installed_dugout_tier or reason!="complete": return {}
+	elif installed_doubleheader_managed:
+		var finish: String="champion" if season.champion==0 else "runner_up"
+		if side!="ordinary" or league!="doubleheader" or tier!=0 or reason!="complete" or summary.finish!=finish: return {}
 	elif installed_doubleheader_missed or installed_doubleheader_qualified_loss:
 		var finish: String="missed" if installed_doubleheader_missed else "semifinal"
 		if side!="ordinary" or league!="doubleheader" or tier!=0 or reason!="complete" or summary.finish!=finish: return {}

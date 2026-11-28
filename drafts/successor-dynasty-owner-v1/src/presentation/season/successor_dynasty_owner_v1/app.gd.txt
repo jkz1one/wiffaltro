@@ -1341,7 +1341,7 @@ func request_installed_dugout_d1_close(expected: PackedByteArray) -> void:
 	match installed_dugout_d1_draft.get("state"):
 		"dynasty_regular_done":
 			_lifecycle_dialog.title="Close Dynasty Season %d?"%int(installed_dugout_d1_draft.get("ordinal",1))
-		"doubleheader_cpu_complete", "doubleheader_club_cpu_complete":
+		"doubleheader_cpu_complete", "doubleheader_club_cpu_complete", "doubleheader_club_managed_final_paid":
 			_lifecycle_dialog.title="Close Doubleheader Base?"
 		_:
 			_lifecycle_dialog.title="Close Dugout D%d?"%int(installed_dugout_d1_draft.get("tier",1))
@@ -1357,6 +1357,7 @@ func _complete_installed_dugout_d1(expected: PackedByteArray) -> void:
 		"dynasty_regular_done": view=Store.complete_installed_earned_dynasty(self)
 		"doubleheader_cpu_complete": view=Store.complete_installed_doubleheader_missed(self)
 		"doubleheader_club_cpu_complete": view=Store.complete_installed_doubleheader_qualified_loss(self)
+		"doubleheader_club_managed_final_paid": view=Store.complete_installed_doubleheader_managed_final(self)
 		_: view=Store.complete_installed_dugout_d1(self)
 	_busy=false
 	if view.is_empty(): notice="Season Close could not be confirmed. Use Continue to check the saved career."

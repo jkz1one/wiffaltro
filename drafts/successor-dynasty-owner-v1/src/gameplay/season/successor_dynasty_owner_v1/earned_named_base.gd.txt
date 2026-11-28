@@ -279,6 +279,35 @@ static func _club_cpu_close_record_from_terminal(value: Dictionary,session: Seas
 		"session_sha256":Life.digest(exact),"aggregate_sha256":Life.digest(folded.aggregate),
 		"aggregate":folded.aggregate,"receipt":folded.receipt}
 
+# Make the same proved terminal object pay and close; never replay it twice
+# or trust the stored claim of a winner, wallet or Season Close.
+static func _club_managed_paid_terminal(source: SeasonState,value: Dictionary) -> Dictionary:
+	var terminal:=Paired._earned_club_managed_final_result(_club_managed_final_projection(source,value),value.get("club_managed_final"))
+	var payment:=_club_managed_final_payment_from_terminal(terminal,value)
+	if payment.is_empty() or not Archive.C.same(payment,value.get("club_managed_final_paid")): return {}
+	return terminal
+
+static func club_managed_close_record(value: Dictionary,source: SeasonState) -> Dictionary:
+	return _club_managed_close_from_terminal(value,_club_managed_paid_terminal(source,value).get("candidate"))
+
+static func _club_managed_close_from_terminal(value: Dictionary,session: SeasonState) -> Dictionary:
+	if not Paired._earned_club_managed_final_close_scope(session) or not value.get("aggregate") is Dictionary: return {}
+	var basis: Dictionary=session.career.start_basis
+	var id: String="%s:3:close"%basis.get("lineage","")
+	if Life.digest(value.aggregate)!=basis.get("common_sha256"): return {}
+	var folded:=Progress.fold_installed_doubleheader_managed_final(value.aggregate,session,id)
+	if folded.is_empty(): return {}
+	var won: bool=session.champion==0
+	var expected_titles: Dictionary=value.aggregate.titles.duplicate(true)
+	if won: expected_titles["doubleheader:0"]=true
+	if folded.receipt.get("finish")!=("champion" if won else "runner_up") \
+			or not Archive.C.same(folded.aggregate.titles,expected_titles): return {}
+	var exact: Dictionary={"regular":value.current,"managed":value.club_semifinal,"other":value.club_other_semifinal,
+		"semifinals_paid":value.club_semifinals_paid,"final":value.club_managed_final,"final_paid":value.club_managed_final_paid}
+	return {"id":id,"ordinal":3,"reason":"complete","league":"doubleheader","tier":0,
+		"session_sha256":Life.digest(exact),"aggregate_sha256":Life.digest(folded.aggregate),
+		"aggregate":folded.aggregate,"receipt":folded.receipt}
+
 static func _cpu_close_shape(close: Variant) -> bool:
 	return _cpu_close_shape_for(close,"missed")
 
@@ -349,6 +378,9 @@ static func _club_semifinal_payment_shape(value: Variant,held: Dictionary) -> bo
 static func club_managed_final_payment(source: SeasonState,value: Dictionary) -> Dictionary:
 	var paid:=_club_managed_final_projection(source,value)
 	var terminal:=Paired._earned_club_managed_final_result(paid,value.get("club_managed_final"))
+	return _club_managed_final_payment_from_terminal(terminal,value)
+
+static func _club_managed_final_payment_from_terminal(terminal: Dictionary,value: Dictionary) -> Dictionary:
 	if terminal.is_empty(): return {}
 	var receipt: Dictionary={"version":1,"managed":32,"before":terminal.before,"cash":terminal.wallet.cash,
 		"champion":terminal.champion,"club_won":terminal.club_won,"wallet":terminal.wallet}
@@ -416,8 +448,11 @@ static func _route_value(value: Variant) -> bool:
 		if not fields.has("club_managed_final") or not _club_managed_final_payment_shape(value.club_managed_final_paid,value): return false
 		fields.append("club_managed_final_paid")
 	if value.has("club_close"):
-		if not fields.has("club_cpu_final") or not _cpu_close_shape_for(value.club_close,"semifinal") \
-				or not Progress.valid(value.club_close.aggregate): return false
+		var finish: String="semifinal"
+		if fields.has("club_managed_final_paid"):
+			finish="champion" if value.club_managed_final_paid.club_won else "runner_up"
+		elif not fields.has("club_cpu_final"): return false
+		if not _cpu_close_shape_for(value.club_close,finish) or not Progress.valid(value.club_close.aggregate): return false
 		fields.append("club_close")
 	return Archive.C.keys(value,fields) \
 		and value.kind==KIND and Archive.C.whole(value.version,1,1) and value.head is Dictionary \
@@ -483,8 +518,11 @@ static func _local_draft(value: Variant,live: bool,verified_current: bool) -> Se
 								if close.is_empty() or not Archive.C.same(close,value.club_close): return null
 						elif value.has("club_managed_final"):
 							if value.has("club_managed_final_paid"):
-								var final_payment:=club_managed_final_payment(session,value)
-								if final_payment.is_empty() or not Archive.C.same(final_payment,value.club_managed_final_paid): return null
+								var terminal:=_club_managed_paid_terminal(session,value)
+								if terminal.is_empty(): return null
+								if value.has("club_close"):
+									var close:=_club_managed_close_from_terminal(value,terminal.candidate)
+									if close.is_empty() or not Archive.C.same(close,value.club_close): return null
 							else:
 								var checked:=_club_managed_final_projection(session,value)
 								if not Paired._earned_club_managed_final_held(checked,value.club_managed_final): return null
@@ -608,9 +646,13 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 						computed.value.club_semifinals_paid=value.club_semifinals_paid
 					elif value.has("club_managed_final"):
 						if value.has("club_managed_final_paid"):
-							var final_payment:=club_managed_final_payment(actual.draft,value)
-							if final_payment.is_empty() or not Archive.C.same(final_payment,value.club_managed_final_paid): return {}
-							computed.value.club_managed_final_paid=final_payment
+							var terminal:=_club_managed_paid_terminal(actual.draft,value)
+							if terminal.is_empty(): return {}
+							computed.value.club_managed_final_paid=value.club_managed_final_paid
+							if value.has("club_close"):
+								var close:=_club_managed_close_from_terminal(value,terminal.candidate)
+								if close.is_empty() or not Archive.C.same(close,value.club_close): return {}
+								computed.value.club_close=close
 						else:
 							var checked:=_club_managed_final_projection(actual.draft,value)
 							if not Paired._earned_club_managed_final_held(checked,value.club_managed_final): return {}
