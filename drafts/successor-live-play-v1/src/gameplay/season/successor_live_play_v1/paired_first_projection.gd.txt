@@ -312,12 +312,17 @@ static func earned_cpu_bracket(source: SeasonState, reports: Array) -> Dictionar
 	if reports.size()<3:
 		if complete or candidate.champion!=-1 or candidate.results.size()!=30+reports.size(): return {}
 		var needed:=_projected_earned_cpu_postseason(candidate,candidate.physical.needed)
-		return _job(candidate,needed) if not needed.is_empty() else {}
+		if needed.is_empty(): return {}
+		var job:=_job(candidate,needed)
+		if not job.is_empty(): job.fixture=needed
+		return job
 	if not complete or candidate.results.size()!=33 or not candidate.physical.needed.is_empty() \
 			or _complete_geometry(candidate).is_empty() or not GeneralPending._receipts(candidate): return {}
 	candidate.physical.projecting=false
 	var settled:=_concrete_settlement(candidate)
-	return settled if not settled.is_empty() and not Live.capture(settled.settlement).is_empty() else {}
+	if settled.is_empty(): return {}
+	settled.current=Live.capture(settled.settlement)
+	return settled if not settled.current.is_empty() else {}
 
 # Only frozen human result ingestion on the detached authenticated paid fork.
 static func semifinal_projection(season: SeasonState) -> bool:

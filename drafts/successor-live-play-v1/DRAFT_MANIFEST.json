@@ -222,8 +222,8 @@
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/paired_first_projection.gd.txt",
       "restore_path": "src/gameplay/season/successor_live_play_v1/paired_first_projection.gd",
-      "bytes": 48201,
-      "sha256": "9bd9379c34abaa3d84c30410e7d7ac0243204f163c95e57a59168ad73227979e"
+      "bytes": 48301,
+      "sha256": "1fb93c66dae822d7af0d53b491ed1a5c5434e984d8f76ee306b2a78a90a3c840"
     },
     {
       "backup_path": "drafts/successor-live-play-v1/src/gameplay/season/successor_live_play_v1/standard_d1_opening.gd.txt",

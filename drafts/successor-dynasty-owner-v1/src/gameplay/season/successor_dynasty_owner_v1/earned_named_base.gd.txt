@@ -232,6 +232,15 @@ static func capture_current(value: Dictionary,session: SeasonState) -> Dictionar
 		return adapter.Ordinary.capture(session) if _paired_current(session) else {}
 	return adapter.capture("ordinary",session)
 
+# Match the existing native archive encoding boundary before validating
+# the whole CPU append. JSON can adjust the last binary digit of live
+# stamina numbers. Do not relax equality for any saved field or report.
+static func canonical_cpu_bracket_row(row: Dictionary,fixture: int) -> Dictionary:
+	if fixture not in [30,31,32] or not Paired._bound_report(row,fixture) or not Archive.C.primitive(row): return {}
+	var native: Variant=Archive._owner()._bytes_value(JSON.stringify(row,"",true,true).to_utf8_buffer())
+	if not native is Dictionary or not Paired._bound_report(native,fixture) or native.request!=row.request: return {}
+	return native
+
 static func _route_value(value: Variant) -> bool:
 	if not value is Dictionary: return false
 	if target(value)=="doubleheader" and (value.has("playoffs") \
@@ -244,6 +253,12 @@ static func _route_value(value: Variant) -> bool:
 		if not value.has("rounds") or value.rounds.size()!=Equipment.REGULAR_LIMIT \
 				or not value.playoffs is Array or value.playoffs.is_empty() or value.playoffs.size()>2: return false
 		fields.append("playoffs")
+	if value.has("cpu_playoffs"):
+		if target(value)!="doubleheader" or not value.has("rounds") or value.rounds.size()!=PAIRED_PAID_LIMIT \
+				or not value.cpu_playoffs is Array or value.cpu_playoffs.is_empty() or value.cpu_playoffs.size()>3: return false
+		for i: int in range(value.cpu_playoffs.size()):
+			if not value.cpu_playoffs[i] is Dictionary or not Paired._bound_report(value.cpu_playoffs[i],30+i): return false
+		fields.append("cpu_playoffs")
 	return Archive.C.keys(value,fields) \
 		and value.kind==KIND and Archive.C.whole(value.version,1,1) and value.head is Dictionary \
 		and value.offer is Dictionary and not target(value).is_empty() \
@@ -283,6 +298,12 @@ static func _local_draft(value: Variant,live: bool,verified_current: bool) -> Se
 				or origin.source_close!=value.offer.get("source_close"): return null
 	var rounds: Array=value.get("rounds",[])
 	var playoffs: Array=value.get("playoffs",[])
+	if paired:
+		var cpu: Array=value.get("cpu_playoffs",[])
+		if session.phase==SeasonState.Phase.COMPLETE:
+			if cpu.size()!=3 or not Archive.C.same(session.physical.reports.slice(20),cpu): return null
+		elif not cpu.is_empty():
+			if cpu.size()>=3 or not Paired._unplayed_semifinals(session) or session.playoff_seeds.has(0): return null
 	if rounds.size()!=session.round_index or (not live and (not rounds.is_empty() or not session.physical.pending.is_empty())): return null
 	if rounds.is_empty():
 		if not session.results.is_empty() or session.build.cash()!=0: return null
@@ -369,6 +390,16 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 		# copy is needed just to compare this same immutable input below.
 		if value.has("rounds"): computed.value.rounds=journal
 		computed.value.current=actual.current
+		if value.has("cpu_playoffs"):
+			var cpu: Array=value.cpu_playoffs
+			var playoff:=Paired.earned_cpu_bracket(actual.draft,cpu)
+			if playoff.is_empty(): return {}
+			computed.value.cpu_playoffs=cpu
+			if cpu.size()==3:
+				if not playoff.has("current") or not playoff.get("settlement") is SeasonState: return {}
+				computed.value.current=playoff.current
+				actual.draft=playoff.settlement
+			elif playoff.get("fixture",{}).get("id")!=30+cpu.size(): return {}
 		if not Archive.C.same(computed.value,value): return {}
 		return {"draft":actual.draft,"aggregate":computed.value.aggregate.duplicate(true)}
 	for row: Variant in journal:

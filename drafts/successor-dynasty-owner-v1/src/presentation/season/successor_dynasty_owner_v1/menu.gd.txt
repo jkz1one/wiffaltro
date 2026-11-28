@@ -637,6 +637,24 @@ func _display_standard_record(history: Dictionary) -> void:
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
 	var lane: String=draft.get("state","")
+	if lane in ["doubleheader_cpu_playoffs","doubleheader_cpu_complete"]:
+		var completed: bool=lane=="doubleheader_cpu_complete"
+		_label(_body,"DOUBLEHEADER BASE · PLAYOFFS COMPLETE" if completed else "DOUBLEHEADER BASE · CPU PLAYOFFS",24)
+		_note("Yard Club did not qualify. %d Season Cash · %d Club Credits retained."%[draft.cash,draft.credits])
+		if completed:
+			var winner: int=int(draft.cpu_champion)
+			if winner in [1,2,3,4,5]: _note("League champion: %s. Playoff results are saved."%SeasonState.TEAM_NAMES[winner])
+			for game: Dictionary in draft.results.slice(30):
+				_note("%s · %d–%d · %s at %s"%["Final" if game.id==32 else "Semifinal",int(game.away_runs),int(game.home_runs),SeasonState.TEAM_NAMES[int(game.away)],SeasonState.TEAM_NAMES[int(game.home)]])
+		else:
+			var verified: int=int(draft.cpu_playoff_reports)
+			_note("%d of 3 CPU playoff games saved. Yard Club has no playoff game or payout."%verified)
+			if app.installed_dugout_d1_cpu_running():
+				_note("Playing CPU playoff game %d of 3…"%(verified+1))
+				_bound_button(_body,"CANCEL CPU GAME",Callable(app,"cancel_installed_dugout_d1_cpu"))
+			elif verified in [0,1,2]:
+				_bound_button(_body,"PLAY CPU PLAYOFF GAME %d OF 3"%(verified+1),Callable(app,"play_installed_dugout_d1_cpu").bind(draft.bytes.duplicate()))
+		return
 	if lane in ["doubleheader_draft","doubleheader_held","doubleheader_paid"]:
 		var round_index: int=int(draft.round)
 		var shown: int=round_index-1 if lane=="doubleheader_paid" else round_index
