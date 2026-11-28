@@ -1274,11 +1274,11 @@ func _finish_installed_dugout_d1_game() -> void:
 	show_season()
 
 func installed_dugout_d1_cpu_running() -> bool:
-	return installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","dynasty_pending","equipment_held","earnings_held","scramble_held","doubleheader_held","doubleheader_cpu_playoffs"] and is_instance_valid(ai_runner)
+	return installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","dynasty_pending","equipment_held","earnings_held","scramble_held","doubleheader_held","doubleheader_cpu_playoffs","doubleheader_club_semifinal_held"] and is_instance_valid(ai_runner)
 
 func _installed_dugout_d1_round_menu(expected: PackedByteArray) -> bool:
 	return not _busy and not is_instance_valid(ai_runner) and not installed_dugout_d1_reading() \
-		and installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","final_unpaid","dynasty_pending","equipment_held","earnings_held","scramble_held","doubleheader_held","doubleheader_cpu_playoffs"] and saved_bytes==expected \
+		and installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","final_unpaid","dynasty_pending","equipment_held","earnings_held","scramble_held","doubleheader_held","doubleheader_cpu_playoffs","doubleheader_club_semifinal_held"] and saved_bytes==expected \
 		and menu!=null and menu.visible and menu.page=="home"
 
 func play_installed_dugout_d1_cpu(expected: PackedByteArray) -> void:

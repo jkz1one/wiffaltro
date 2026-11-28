@@ -663,12 +663,25 @@ func _installed_dugout_d1() -> void:
 			elif verified in [0,1,2]:
 				_bound_button(_body,"PLAY CPU PLAYOFF GAME %d OF 3"%(verified+1),Callable(app,"play_installed_dugout_d1_cpu").bind(draft.bytes.duplicate()))
 		return
-	if lane=="doubleheader_club_semifinal_held":
+	if lane in ["doubleheader_club_semifinal_held","doubleheader_club_semifinals_held"]:
 		var f: Dictionary=draft.club_semifinal
 		_label(_body,"DOUBLEHEADER BASE · SEMIFINAL SAVED",24)
 		_note("%d–%d · %s at %s"%[draft.club_held_score[0],draft.club_held_score[1],
 			SeasonState.TEAM_NAMES[int(f.away)],SeasonState.TEAM_NAMES[int(f.home)]])
-		_note("Your semifinal is saved. The bracket and Season Cash have not settled.")
+		var other: Dictionary=draft.club_other_semifinal
+		if not other.is_empty():
+			var visitor: String=SeasonState.TEAM_NAMES[int(other.away)]
+			var host: String=SeasonState.TEAM_NAMES[int(other.home)]
+			if lane=="doubleheader_club_semifinals_held":
+				_note("Other semifinal saved: %d–%d · %s at %s"%[draft.club_other_score[0],draft.club_other_score[1],visitor,host])
+			else:
+				_note("Other semifinal: %s at %s"%[visitor,host])
+				if app.installed_dugout_d1_cpu_running():
+					_note("Playing the other semifinal…")
+					_bound_button(_body,"CANCEL CPU GAME",Callable(app,"cancel_installed_dugout_d1_cpu"))
+				else:
+					_bound_button(_body,"PLAY OTHER SEMIFINAL",Callable(app,"play_installed_dugout_d1_cpu").bind(draft.bytes.duplicate()))
+		_note("The bracket and Season Cash have not settled.")
 		_note("%d Season Cash · %d Club Credits retained."%[draft.cash,draft.credits])
 		return
 	if lane in ["doubleheader_draft","doubleheader_held","doubleheader_paid"]:

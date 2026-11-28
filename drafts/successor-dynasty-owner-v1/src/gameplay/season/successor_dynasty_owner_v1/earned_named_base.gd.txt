@@ -299,6 +299,10 @@ static func _route_value(value: Variant) -> bool:
 		if target(value)!="doubleheader" or not value.has("rounds") or value.rounds.size()!=PAIRED_PAID_LIMIT \
 				or fields.has("cpu_playoffs") or not Paired.earned_club_semifinal_held_shape(value.club_semifinal): return false
 		fields.append("club_semifinal")
+	if value.has("club_other_semifinal"):
+		if not fields.has("club_semifinal") \
+				or not Paired._bound_report(value.club_other_semifinal,61-int(value.club_semifinal.human[0])): return false
+		fields.append("club_other_semifinal")
 	return Archive.C.keys(value,fields) \
 		and value.kind==KIND and Archive.C.whole(value.version,1,1) and value.head is Dictionary \
 		and value.offer is Dictionary and not target(value).is_empty() \
@@ -349,8 +353,11 @@ static func _local_draft(value: Variant,live: bool,verified_current: bool) -> Se
 			if not verified_current and not Archive.C.same(cpu_close_record(value,session),value.cpu_close): return null
 		if value.has("club_semifinal"):
 			var pairing:=Paired._earned_club_semifinal_pair(session)
-			if pairing.is_empty() or pairing.human.id!=value.club_semifinal.human[0] \
-					or (not verified_current and not Paired.earned_club_semifinal_held(session,value.club_semifinal)): return null
+			if pairing.is_empty() or pairing.human.id!=value.club_semifinal.human[0]: return null
+			if not verified_current:
+				if value.has("club_other_semifinal"):
+					if not Paired.Live._paid_history_valid(session) or not Paired._earned_club_other_semifinal_held_bound(session,value.club_semifinal,value.club_other_semifinal): return null
+				elif not Paired.earned_club_semifinal_held(session,value.club_semifinal): return null
 	if rounds.size()!=session.round_index or (not live and (not rounds.is_empty() or not session.physical.pending.is_empty())): return null
 	if rounds.is_empty():
 		if not session.results.is_empty() or session.build.cash()!=0: return null
@@ -452,7 +459,10 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 			if close.is_empty(): return {}
 			computed.value.cpu_close=close
 		if value.has("club_semifinal"):
-			if not Paired._earned_club_semifinal_held_bound(actual.draft,value.club_semifinal): return {}
+			if value.has("club_other_semifinal"):
+				if not Paired._earned_club_other_semifinal_held_bound(actual.draft,value.club_semifinal,value.club_other_semifinal): return {}
+				computed.value.club_other_semifinal=value.club_other_semifinal
+			elif not Paired._earned_club_semifinal_held_bound(actual.draft,value.club_semifinal): return {}
 			computed.value.club_semifinal=value.club_semifinal
 		if not Archive.C.same(computed.value,value): return {}
 		var aggregate: Dictionary=computed.value.cpu_close.aggregate if value.has("cpu_close") else computed.value.aggregate

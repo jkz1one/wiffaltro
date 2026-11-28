@@ -389,13 +389,45 @@ static func earned_club_semifinal_held(source: SeasonState,value: Variant) -> bo
 		and _earned_club_semifinal_held_bound(source,value)
 
 static func _earned_club_semifinal_held_bound(source: SeasonState,value: Variant) -> bool:
-	if not earned_club_semifinal_held_shape(value): return false
+	return not _earned_club_semifinal_fork_bound(source,value).is_empty()
+
+# The other semifinal derives from the exact held human result. No slot,
+# roster, score or request can be supplied by the UI.
+static func earned_club_other_semifinal_job(source: SeasonState,value: Variant) -> Dictionary:
+	if source==null or not Live.scope(source) or not Live._paid_history_valid(source): return {}
+	return _earned_club_other_semifinal_job_bound(source,value)
+
+static func _earned_club_other_semifinal_job_bound(source: SeasonState,value: Variant) -> Dictionary:
+	var fork:=_earned_club_semifinal_fork_bound(source,value)
+	if fork.is_empty(): return {}
+	var job:=_job(fork.candidate,fork.fixture)
+	if not job.is_empty(): job.fixture=fork.fixture
+	return job
+
+# Only authenticate this one receipt. Resolving a report on the detached
+# fork must not settle either semifinal, advance to the final or pay.
+static func _earned_club_other_semifinal_held_bound(source: SeasonState,value: Variant,row: Variant) -> bool:
+	var fork:=_earned_club_semifinal_fork_bound(source,value)
+	if fork.is_empty() or not _bound_report(row,int(fork.fixture.id)): return false
+	var candidate: SeasonState=fork.candidate
+	var fixture: Dictionary=fork.fixture
+	var needed: String=Physical.request_key(candidate,fixture)
+	if needed.is_empty() or needed!=row.request: return false
+	candidate.physical.reports.append(row.duplicate(true))
+	var played: Dictionary=candidate.physical.resolve(candidate,fixture)
+	return not played.is_empty() and Live.whole(played.get("id"),int(fixture.id),int(fixture.id)) \
+		and candidate.physical.cursor==21 and candidate.physical.error.is_empty() and candidate.physical.needed.is_empty() \
+		and candidate.phase==SeasonState.Phase.SEMIFINAL and candidate.results.size()==31 \
+		and candidate.champion==-1 and candidate.final_fixture.is_empty() and not Live.scope(candidate)
+
+static func _earned_club_semifinal_fork_bound(source: SeasonState,value: Variant) -> Dictionary:
+	if not earned_club_semifinal_held_shape(value): return {}
 	var game:=_earned_club_semifinal_opening_bound(source)
-	if game.is_empty() or game.fixture.id!=value.human[0] or not Live.same(game.binding,value.binding): return false
+	if game.is_empty() or game.fixture.id!=value.human[0] or not Live.same(game.binding,value.binding): return {}
 	var candidate: SeasonState=_detached(source,PrivateEarnedClubSemifinal)
-	if candidate==null or Live.scope(candidate): return false
+	if candidate==null or Live.scope(candidate): return {}
 	var shape: Dictionary={"human":value.human,"reports":[]}
-	if not GeneralPending._doubleheader_shape(shape,Live.Catalog.game_signature()): return false
+	if not GeneralPending._doubleheader_shape(shape,Live.Catalog.game_signature()): return {}
 	var projected:=GeneralPending._project_candidate(candidate,shape)
 	if projected.has("error") or projected.get("candidate")!=candidate or not Live.same(projected.get("fixture"),game.other) \
 			or not Live.same(candidate.physical.needed,game.other) or not Live.same(candidate.semifinals,source.semifinals) \
@@ -403,10 +435,11 @@ static func _earned_club_semifinal_held_bound(source: SeasonState,value: Variant
 			or not Live.same(candidate.results.slice(0,30),source.results) \
 			or not Live.same(candidate.player_results.slice(0,10),source.player_results) \
 			or not Live.same(candidate.physical.reports,source.physical.reports) \
-			or _projected_earned_club_other_semifinal(candidate,game.other).is_empty(): return false
+			or _projected_earned_club_other_semifinal(candidate,game.other).is_empty(): return {}
 	var played: Dictionary=candidate.player_results.back()
-	return played.id==int(value.human[0]) and played.away_runs==value.human[1] \
-		and played.home_runs==value.human[2] and Live.same(played,candidate.results.back())
+	if played.id!=int(value.human[0]) or played.away_runs!=value.human[1] \
+			or played.home_runs!=value.human[2] or not Live.same(played,candidate.results.back()): return {}
+	return {"candidate":candidate,"fixture":game.other}
 
 class PrivateEarnedClubSemifinal extends PrivateFirstFork:
 	pass
@@ -425,7 +458,7 @@ static func _projected_earned_club_other_semifinal(season: SeasonState,fixture: 
 			or season.round_index!=10 or season.champion!=-1 or not season.final_fixture.is_empty() \
 			or season.results.size()!=31 or season.player_results.size()!=11 or season.semifinals.size()!=2 \
 			or not season.physical.projecting or not season.physical.pending.is_empty() \
-			or season.physical.cursor!=20 or season.physical.reports.size()!=20: return {}
+			or season.physical.cursor!=20 or season.physical.reports.size() not in [20,21]: return {}
 	var human: Dictionary=season.pending_fixture()
 	# JSON whole numbers are floats. Test the exact integer semantics
 	# before building the request; Array.has distinguishes 0 from 0.0.
@@ -433,6 +466,9 @@ static func _projected_earned_club_other_semifinal(season: SeasonState,fixture: 
 			or not Live.whole(human.get("home"),0,5) \
 			or not (Live.whole(human.get("away"),0,0) or Live.whole(human.get("home"),0,0)): return {}
 	var id: int=int(human.id)
+	# The same native resolver reconstructs its request after the one
+	# matching receipt is staged. No other continuation or fixture enters.
+	if season.physical.reports.size()==21 and not _bound_report(season.physical.reports[20],61-id): return {}
 	if not Live.whole(season.results.back().get("id"),id,id) \
 			or not Live.whole(season.player_results.back().get("id"),id,id) \
 			or not season.build._bank.view().rewards.has(str(id)): return {}
