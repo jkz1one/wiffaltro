@@ -1278,7 +1278,7 @@ func installed_dugout_d1_cpu_running() -> bool:
 
 func _installed_dugout_d1_round_menu(expected: PackedByteArray) -> bool:
 	return not _busy and not is_instance_valid(ai_runner) and not installed_dugout_d1_reading() \
-		and installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","final_unpaid","dynasty_pending","equipment_held","earnings_held","scramble_held","doubleheader_held","doubleheader_cpu_playoffs","doubleheader_club_semifinal_held"] and saved_bytes==expected \
+		and installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","final_unpaid","dynasty_pending","equipment_held","earnings_held","scramble_held","doubleheader_held","doubleheader_cpu_playoffs","doubleheader_club_semifinal_held","doubleheader_club_semifinals_held"] and saved_bytes==expected \
 		and menu!=null and menu.visible and menu.page=="home"
 
 func play_installed_dugout_d1_cpu(expected: PackedByteArray) -> void:
@@ -1306,6 +1306,14 @@ func _installed_dugout_d1_cpu_done(runner: Node,view: Dictionary,problem: String
 func settle_installed_dugout_d1(expected: PackedByteArray) -> void:
 	if not _installed_dugout_d1_round_menu(expected): return
 	_busy=true
+	if installed_dugout_d1_draft.get("state")=="doubleheader_club_semifinals_held":
+		notice="Settling the earned semifinals… Keep this window open."
+		show_season()
+		await get_tree().process_frame
+		await get_tree().process_frame
+		if saved_bytes!=expected or installed_dugout_d1_draft.get("state")!="doubleheader_club_semifinals_held":
+			_busy=false
+			return
 	var view:=Store.settle_installed_dugout_d1_round(self)
 	_busy=false
 	if view.is_empty(): notice="The round could not be paid. Your saved results are unchanged."

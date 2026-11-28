@@ -206,7 +206,8 @@ static func projected_npc_fixture(season: SeasonState, fixture: Dictionary) -> D
 	if season.get_script()==PrivateEarnedCpuBracket:
 		return _projected_earned_cpu_postseason(season,fixture)
 	if season.get_script()==PrivateEarnedClubSemifinal:
-		return _projected_earned_club_other_semifinal(season,fixture)
+		return _projected_earned_club_cpu_final(season,fixture) if season.phase==SeasonState.Phase.FINAL \
+			else _projected_earned_club_other_semifinal(season,fixture)
 	if season.round_index==10:
 		return _projected_final_npc(season,fixture) if season.phase==SeasonState.Phase.FINAL else _projected_semifinal_npc(season,fixture)
 	if season.phase!=SeasonState.Phase.REGULAR: return {}
@@ -441,6 +442,66 @@ static func _earned_club_semifinal_fork_bound(source: SeasonState,value: Variant
 			or played.home_runs!=value.human[2] or not Live.same(played,candidate.results.back()): return {}
 	return {"candidate":candidate,"fixture":game.other}
 
+# Frozen General settlement owns both match rewards. On the isolated fork
+# it may stop for the CPU final or open the club's actual final, never invent a
+# report or expose a partially paid saved season.
+static func earned_club_semifinals_paid(source: SeasonState,held: Variant,other: Variant) -> Dictionary:
+	if source==null or not Live.scope(source) or not Live._paid_history_valid(source): return {}
+	return _earned_club_semifinals_paid_bound(source,held,other)
+
+static func _earned_club_semifinals_paid_bound(source: SeasonState,held: Variant,other: Variant) -> Dictionary:
+	if not earned_club_semifinal_held_shape(held): return {}
+	var game:=_earned_club_semifinal_opening_bound(source)
+	if game.is_empty() or game.fixture.id!=held.human[0] or not Live.same(game.binding,held.binding) \
+			or not _bound_report(other,int(game.other.id)): return {}
+	var candidate: SeasonState=_detached(source,PrivateEarnedClubSemifinal)
+	if candidate==null or Live.scope(candidate): return {}
+	# Frozen General uses typed array membership when taking its two
+	# winners. Reuse the exact authored integral rows (already compared to
+	# the parsed save), rather than modifying any frozen/legacy rules.
+	candidate.semifinals[int(game.fixture.id)-30]=game.fixture.duplicate()
+	candidate.semifinals[int(game.other.id)-30]=game.other.duplicate()
+	var shape: Dictionary={"human":held.human,"reports":[other]}
+	if not GeneralPending._doubleheader_shape(shape,Live.Catalog.game_signature()): return {}
+	var projected:=GeneralPending._project_candidate(candidate,shape)
+	if projected.has("error") or projected.get("candidate")!=candidate or Live.scope(candidate) \
+			or candidate.phase!=SeasonState.Phase.FINAL or candidate.round_index!=10 or candidate.champion!=-1 \
+			or candidate.results.size()!=32 or candidate.player_results.size()!=11 or candidate.physical.cursor!=21 \
+			or not candidate.physical.error.is_empty() or not GeneralPending._receipts(candidate) \
+			or not Live.same(candidate.playoff_seeds,source.playoff_seeds) or not Live.same(candidate.semifinals,source.semifinals) \
+			or not Live.same(candidate.results.slice(0,30),source.results) \
+			or not Live.same(candidate.player_results.slice(0,10),source.player_results) \
+			or not Live.same(candidate.physical.reports,source.physical.reports+[other]): return {}
+	var managed: Dictionary=candidate.results[30]
+	var sibling: Dictionary=candidate.results[31]
+	if not Live.whole(managed.get("id"),int(game.fixture.id),int(game.fixture.id)) \
+			or not Live.whole(sibling.get("id"),int(game.other.id),int(game.other.id)) \
+			or not Live.same(managed,candidate.player_results[10]) \
+			or managed.away_runs!=held.human[1] or managed.home_runs!=held.human[2]: return {}
+	var wins: Array[int]=[SeasonState._winner(managed),SeasonState._winner(sibling)]
+	if wins[0]==wins[1] or not source.playoff_seeds.has(wins[0]) or not source.playoff_seeds.has(wins[1]): return {}
+	var club_won: bool=wins[0]==0
+	wins.sort_custom(func(a: int,b: int):return source.playoff_seeds.find(a)<source.playoff_seeds.find(b))
+	var final: Dictionary={"id":32,"round":11,"home":wins[0],"away":wins[1],"neutral":true}
+	var reward: Dictionary=source.build._bank.view().rewards.duplicate(true)
+	reward[str(int(managed.id))]=club_won
+	if not Live.same(candidate.build._bank.view().rewards,reward) or not Live.same(candidate.final_fixture,final): return {}
+	if club_won:
+		if projected.has("fixture") or not candidate.physical.needed.is_empty() or candidate.physical.projecting: return {}
+	elif not Live.same(projected.get("fixture"),final) or not Live.same(candidate.physical.needed,final) or not candidate.physical.projecting: return {}
+	return {"fixture":final,"cash":candidate.cash(),"club_won":club_won,"candidate":candidate}
+
+static func _projected_earned_club_cpu_final(season: SeasonState,fixture: Dictionary) -> Dictionary:
+	if not season.physical.projecting or not season.physical.pending.is_empty() or season.round_index!=10 \
+			or season.champion!=-1 or season.physical.cursor!=21 or season.physical.reports.size()!=21 \
+			or season.results.size()!=32 or season.player_results.size()!=11: return {}
+	var saved: Dictionary=season.final_fixture
+	if not Live.whole(saved.get("id"),32,32) or not Live.whole(saved.get("round"),11,11) \
+			or not Live.whole(saved.get("home"),1,5) or not Live.whole(saved.get("away"),1,5) \
+			or saved.home==saved.away or saved.get("neutral")!=true: return {}
+	var canonical: Dictionary={"id":32,"round":11,"home":int(saved.home),"away":int(saved.away),"neutral":true}
+	return canonical if Live.same(saved,canonical) and Live.same(fixture,canonical) else {}
+
 class PrivateEarnedClubSemifinal extends PrivateFirstFork:
 	pass
 
@@ -449,9 +510,14 @@ class PrivateEarnedClubSemifinal extends PrivateFirstFork:
 # save, stale wrapper, caller switch, or already-paid game qualifies.
 static func earned_club_semifinal_projection(season: SeasonState) -> bool:
 	return season!=null and season.get_script()==PrivateEarnedClubSemifinal \
-		and season.physical!=null and season.physical.projecting and season.physical.reports.size()==20 \
+		and season.physical!=null and season.physical.projecting and season.physical.reports.size() in [20,21] \
 		and season.phase==SeasonState.Phase.SEMIFINAL and season.playoff_seeds.has(0) \
-		and _unplayed_semifinals(season)
+		and _unplayed_semifinals(season) \
+		and (season.physical.reports.size()==20 or _prequeued_other_semifinal(season))
+
+static func _prequeued_other_semifinal(season: SeasonState) -> bool:
+	var human: Dictionary=season.pending_fixture()
+	return Live.whole(human.get("id"),30,31) and _bound_report(season.physical.reports[20],61-int(human.id))
 
 static func _projected_earned_club_other_semifinal(season: SeasonState,fixture: Dictionary) -> Dictionary:
 	if season==null or season.get_script()!=PrivateEarnedClubSemifinal or season.phase!=SeasonState.Phase.SEMIFINAL \
