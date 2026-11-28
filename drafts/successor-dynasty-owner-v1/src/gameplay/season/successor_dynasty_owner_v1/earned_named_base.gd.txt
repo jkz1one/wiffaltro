@@ -292,10 +292,16 @@ static func _cpu_close_shape_for(close: Variant,finish: String) -> bool:
 # The physical input uses the same JSON boundary as installed regular
 # held games. Binary last-bit adjustments do not alter identity or scores.
 static func canonical_club_semifinal(human: Array,binding: Dictionary) -> Dictionary:
+	return _canonical_club_managed(human,binding,Paired.earned_club_semifinal_held_shape)
+
+static func canonical_club_managed_final(human: Array,binding: Dictionary) -> Dictionary:
+	return _canonical_club_managed(human,binding,Paired.earned_club_managed_final_held_shape)
+
+static func _canonical_club_managed(human: Array,binding: Dictionary,shape: Callable) -> Dictionary:
 	var direct: Dictionary={"human":human,"binding":binding}
-	if not Paired.earned_club_semifinal_held_shape(direct) or not Archive.C.primitive(direct): return {}
+	if not shape.call(direct) or not Archive.C.primitive(direct): return {}
 	var value: Variant=Archive._owner()._bytes_value(JSON.stringify(direct,"",true,true).to_utf8_buffer())
-	if not Paired.earned_club_semifinal_held_shape(value) or not Archive.C.same(value.binding,binding) \
+	if not shape.call(value) or not Archive.C.same(value.binding,binding) \
 			or not Archive.C.same(value.human.slice(0,3),human.slice(0,3)): return {}
 	return value
 
@@ -315,7 +321,13 @@ static func _club_semifinal_receipt_from_projection(source: SeasonState,held: Va
 # Starting or committing a CPU final always reconstructs—not trusts—the
 # exact paid wallet/geometry. Reuse that same projection for the final.
 static func _club_cpu_final_projection(source: SeasonState,value: Dictionary) -> Dictionary:
-	if not value.has("club_semifinals_paid") or value.club_semifinals_paid.get("club_won",true): return {}
+	return _club_paid_final_projection(source,value,false)
+
+static func _club_managed_final_projection(source: SeasonState,value: Dictionary) -> Dictionary:
+	return _club_paid_final_projection(source,value,true)
+
+static func _club_paid_final_projection(source: SeasonState,value: Dictionary,won: bool) -> Dictionary:
+	if not value.get("club_semifinals_paid") is Dictionary or value.club_semifinals_paid.get("club_won")!=won: return {}
 	var paid:=Paired._earned_club_semifinals_paid_bound(source,value.club_semifinal,value.club_other_semifinal)
 	var checked:=_club_semifinal_receipt_from_projection(source,value.club_semifinal,paid)
 	return paid if not checked.is_empty() and Archive.C.same(checked,value.club_semifinals_paid) else {}
@@ -369,6 +381,10 @@ static func _route_value(value: Variant) -> bool:
 		if not fields.has("club_semifinals_paid") or value.club_semifinals_paid.club_won \
 				or not Paired._bound_report(value.club_cpu_final,32): return false
 		fields.append("club_cpu_final")
+	if value.has("club_managed_final"):
+		if not fields.has("club_semifinals_paid") or not value.club_semifinals_paid.club_won \
+				or fields.has("club_cpu_final") or not Paired.earned_club_managed_final_held_shape(value.club_managed_final): return false
+		fields.append("club_managed_final")
 	if value.has("club_close"):
 		if not fields.has("club_cpu_final") or not _cpu_close_shape_for(value.club_close,"semifinal") \
 				or not Progress.valid(value.club_close.aggregate): return false
@@ -435,6 +451,9 @@ static func _local_draft(value: Variant,live: bool,verified_current: bool) -> Se
 							if value.has("club_close"):
 								var close:=_club_cpu_close_record_from_terminal(value,terminal.candidate)
 								if close.is_empty() or not Archive.C.same(close,value.club_close): return null
+						elif value.has("club_managed_final"):
+							var checked:=_club_managed_final_projection(session,value)
+							if not Paired._earned_club_managed_final_held(checked,value.club_managed_final): return null
 						else:
 							var paid:=club_semifinal_payment(session,value.club_semifinal,value.club_other_semifinal)
 							if paid.is_empty() or not Archive.C.same(paid,value.club_semifinals_paid): return null
@@ -553,6 +572,11 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 							computed.value.club_close=close
 						computed.value.club_cpu_final=value.club_cpu_final
 						computed.value.club_semifinals_paid=value.club_semifinals_paid
+					elif value.has("club_managed_final"):
+						var checked:=_club_managed_final_projection(actual.draft,value)
+						if not Paired._earned_club_managed_final_held(checked,value.club_managed_final): return {}
+						computed.value.club_semifinals_paid=value.club_semifinals_paid
+						computed.value.club_managed_final=value.club_managed_final
 					else:
 						var paid:=club_semifinal_payment(actual.draft,value.club_semifinal,value.club_other_semifinal)
 						if paid.is_empty() or not Archive.C.same(paid,value.club_semifinals_paid): return {}

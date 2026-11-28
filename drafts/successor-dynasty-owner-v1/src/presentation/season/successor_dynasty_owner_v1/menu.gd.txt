@@ -663,11 +663,12 @@ func _installed_dugout_d1() -> void:
 			elif verified in [0,1,2]:
 				_bound_button(_body,"PLAY CPU PLAYOFF GAME %d OF 3"%(verified+1),Callable(app,"play_installed_dugout_d1_cpu").bind(draft.bytes.duplicate()))
 		return
-	if lane in ["doubleheader_club_semifinal_held","doubleheader_club_semifinals_held","doubleheader_club_semifinals_paid","doubleheader_club_cpu_complete","doubleheader_club_cpu_closed"]:
+	if lane in ["doubleheader_club_semifinal_held","doubleheader_club_semifinals_held","doubleheader_club_semifinals_paid","doubleheader_club_managed_final_held","doubleheader_club_cpu_complete","doubleheader_club_cpu_closed"]:
 		var f: Dictionary=draft.club_semifinal
 		var finished: bool=lane in ["doubleheader_club_cpu_complete","doubleheader_club_cpu_closed"]
 		var closed: bool=lane=="doubleheader_club_cpu_closed"
-		var heading: String="SEASON CLOSED" if closed else ("FINAL SAVED" if finished else ( \
+		var managed_final: bool=lane=="doubleheader_club_managed_final_held"
+		var heading: String="SEASON CLOSED" if closed else ("FINAL SAVED" if finished or managed_final else ( \
 			"SEMIFINALS PAID" if lane=="doubleheader_club_semifinals_paid" else "SEMIFINAL SAVED"))
 		_label(_body,"DOUBLEHEADER BASE · "+heading,24)
 		_note("%d–%d · %s at %s"%[draft.club_held_score[0],draft.club_held_score[1],
@@ -685,7 +686,7 @@ func _installed_dugout_d1() -> void:
 					_bound_button(_body,"CANCEL CPU GAME",Callable(app,"cancel_installed_dugout_d1_cpu"))
 				else:
 					_bound_button(_body,"PLAY OTHER SEMIFINAL",Callable(app,"play_installed_dugout_d1_cpu").bind(draft.bytes.duplicate()))
-		if lane=="doubleheader_club_semifinals_paid" or finished:
+		if lane=="doubleheader_club_semifinals_paid" or finished or managed_final:
 			var paid: Dictionary=draft.club_semifinal_paid
 			_note("+%d Season Cash for your semifinal %s."%[int(paid.cash)-int(paid.before),"win" if paid.club_won else "loss"])
 			var final: Dictionary=paid.final
@@ -699,9 +700,14 @@ func _installed_dugout_d1() -> void:
 						receipt.total,receipt.finish_award,receipt.record_bonus])
 				elif draft.close_available:
 					_bound_button(_body,"CLOSE DOUBLEHEADER SEASON",Callable(app,"request_installed_dugout_d1_close").bind(draft.bytes.duplicate()))
+			elif managed_final:
+				_note("Final saved: %d–%d · %s · neutral park"%[draft.club_managed_final_score[0],draft.club_managed_final_score[1],sides])
+				_note("The final and its Season Cash have not settled.")
 			else:
 				_note("Final: %s · neutral park"%sides)
-				if not paid.club_won:
+				if draft.club_can_play_final:
+					_bound_button(_body,"PLAY YOUR FINAL",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
+				elif not paid.club_won:
 					if app.installed_dugout_d1_cpu_running():
 						_note("Playing the CPU final…")
 						_bound_button(_body,"CANCEL CPU GAME",Callable(app,"cancel_installed_dugout_d1_cpu"))

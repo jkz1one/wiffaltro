@@ -491,6 +491,77 @@ static func _earned_club_semifinals_paid_bound(source: SeasonState,held: Variant
 	elif not Live.same(projected.get("fixture"),final) or not Live.same(candidate.physical.needed,final) or not candidate.physical.projecting: return {}
 	return {"fixture":final,"cash":candidate.cash(),"club_won":club_won,"candidate":candidate}
 
+# This context is private to the authentic two-semifinal projection.
+# Its type is never accepted by the live codec's persistence scope.
+static func earned_club_managed_final_context(season: SeasonState) -> bool:
+	if season==null or season.get_script()!=PrivateEarnedClubSemifinal or season.career==null \
+			or not Live.CommonStart.detached_earned_doubleheader(season.career.start_basis) \
+			or season.phase!=SeasonState.Phase.FINAL or season.round_index!=10 or season.picks.size()!=4 \
+			or season.champion!=-1 or not season.playoff_seeds.has(0) or season.semifinals.size()!=2 \
+			or season.results.size()!=32 or season.player_results.size()!=11 or season.physical==null \
+			or not season.physical.pending.is_empty() or not season.physical.needed.is_empty() \
+			or not season.physical.error.is_empty() or season.physical.cursor!=21 or season.physical.reports.size()!=21: return false
+	var managed: Dictionary=season.player_results.back()
+	if not Live.whole(managed.get("id"),30,31) or not Live.same(managed,season.results[30]) \
+			or SeasonState._winner(managed)!=0 or not _bound_report(season.physical.reports[20],61-int(managed.id)): return false
+	var reward: Dictionary=season.build._bank.view().rewards
+	if reward.get(str(int(managed.id)))!=true or reward.has("32"): return false
+	var final: Dictionary=season.final_fixture
+	var rival: int=SeasonState._winner(season.results[31])
+	if rival<1 or rival>5 or not season.playoff_seeds.has(rival): return false
+	var club_home: bool=season.playoff_seeds.find(0)<season.playoff_seeds.find(rival)
+	var authored: Dictionary={"id":32,"round":11,"away":rival if club_home else 0,"home":0 if club_home else rival,"neutral":true}
+	return Live.same(final,authored) and Live.same(season.pending_fixture(),authored)
+
+static func _earned_club_managed_final_opening(paid: Dictionary) -> Dictionary:
+	var season: SeasonState=paid.get("candidate")
+	if not paid.get("club_won",false) or not earned_club_managed_final_context(season) or season.physical.projecting \
+			or not Live.same(paid.get("fixture"),season.final_fixture): return {}
+	var fixture: Dictionary=season.final_fixture
+	var state: MatchState=GeneralOps._source_public_make_match(season)
+	var field: FieldDefinition=SeasonState.field_for_fixture(fixture,season)
+	if state==null or field==null or not state.stadium.is_empty() or not state.sure_shot.enable_current_evidence(): return {}
+	var hash:=Request._for_materialized_wallet(season,fixture,state,field)
+	if hash.is_empty(): return {}
+	var club: TeamMatchState=state.home_team if fixture.home==0 else state.away_team
+	var binding: Dictionary={"format":"installed-earned-doubleheader-managed-final-v1","request":hash,
+		"equipped":state.gear_usage.equipped,"held":club.tactics.held,
+		"field_supply":[club.field_supply.receipt,club.field_supply.retired,club.field_supply.capacity],
+		"scout":club.scouted_recipe,"copy":club.copy_source,"insurance":club.tactics.insured_receipt,
+		"track_walks":club.tactics.track_walks}
+	return {"state":state,"field":field,"fixture":fixture,"season":season,
+		"binding":{"version":1,"request":JSON.stringify(binding,"",true,true).sha256_text()}}
+
+static func earned_club_managed_final_held_shape(value: Variant) -> bool:
+	return Live.keys(value,["human","binding"]) and value.human is Array and value.human.size()==14 \
+		and Live.whole(value.human[0],32,32) and _binding_shape(value.binding)
+
+# Validate with native Final settlement on the new disposable paid fork.
+# The owning operation retains only the evidence, not this paid candidate.
+static func _earned_club_managed_final_held(paid: Dictionary,value: Variant) -> bool:
+	if not earned_club_managed_final_held_shape(value): return false
+	var opened:=_earned_club_managed_final_opening(paid)
+	if opened.is_empty() or not Live.same(opened.binding,value.binding): return false
+	var candidate: SeasonState=opened.season
+	var before_results: Array=candidate.results.duplicate(true)
+	var before_player: Array=candidate.player_results.duplicate(true)
+	var before_reports: Array=candidate.physical.reports.duplicate()
+	var expected_reward: Dictionary=candidate.build._bank.view().rewards.duplicate(true)
+	var shape: Dictionary={"human":value.human,"reports":[]}
+	if not GeneralPending._doubleheader_shape(shape,Live.Catalog.game_signature()): return false
+	var projected:=GeneralPending._project_candidate(candidate,shape)
+	if projected.has("error") or projected.has("fixture") or projected.get("candidate")!=candidate or Live.scope(candidate) \
+			or candidate.phase!=SeasonState.Phase.COMPLETE or candidate.results.size()!=33 or candidate.player_results.size()!=12 \
+			or candidate.physical.cursor!=21 or candidate.physical.projecting or not candidate.physical.needed.is_empty() \
+			or not candidate.physical.error.is_empty() or not Live.same(candidate.results.slice(0,32),before_results) \
+			or not Live.same(candidate.player_results.slice(0,11),before_player) or not Live.same(candidate.physical.reports,before_reports) \
+			or not GeneralPending._receipts(candidate): return false
+	var match_row: Dictionary=candidate.player_results.back()
+	expected_reward["32"]=SeasonState._winner(match_row)==0
+	return Live.whole(match_row.get("id"),32,32) and Live.same(match_row,candidate.results.back()) \
+		and match_row.away_runs==value.human[1] and match_row.home_runs==value.human[2] \
+		and candidate.champion==SeasonState._winner(match_row) and Live.same(candidate.build._bank.view().rewards,expected_reward)
+
 # A CPU final consumes fixture 32 only after the native two-semifinal
 # projection has proved elimination and emitted the exact final request.
 static func _earned_club_cpu_final_job(paid: Dictionary) -> Dictionary:

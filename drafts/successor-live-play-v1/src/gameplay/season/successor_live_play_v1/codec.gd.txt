@@ -379,6 +379,9 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 # Forward earned regular-to-postseason handoff, no playoff result yet.
 static func _earned_regular_close_shape(season: SeasonState) -> bool:
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	# An authentic paid, non-persistable managed Final may validate its
+	# match context; scope still excludes this runtime type.
+	if projection.earned_club_managed_final_context(season): return true
 	# Same runtime-only persisted shape. The one official detached
 	# semifinal recorder additionally needs this exact pre-record context.
 	var detaching: bool=projection.earned_club_semifinal_projection(season)
