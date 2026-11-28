@@ -647,6 +647,9 @@ func _installed_dugout_d1() -> void:
 		_label(_body,label,24)
 		_note("Dugout Base and D1 titles kept · %d Club Credits · %d Season Cash"%[draft.credits,draft.cash])
 		_note("Each pair has two games. Pitching workload carries by player into the second game.")
+		if not draft.playoff_seeds.is_empty():
+			var seed: int=draft.playoff_seeds.find(0)+1
+			_note("Regular season complete. Qualified for the playoffs as seed %d."%seed if seed>0 else "Regular season complete. Yard Club did not qualify for the playoffs.")
 		for id: String in draft.picks:
 			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
 			_label(_body,player.display_name if player!=null else id,20)

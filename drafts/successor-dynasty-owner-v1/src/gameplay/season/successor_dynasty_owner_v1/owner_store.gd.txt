@@ -3261,6 +3261,7 @@ static func _installed_named_base_view(body: PackedByteArray,value: Dictionary,d
 		var state: String="doubleheader_held" if not pending.is_empty() else ("doubleheader_paid" if draft.round_index>0 else "doubleheader_draft")
 		return {"state":state,"bytes":body.duplicate(),"picks":draft.picks.duplicate(),"offers":draft.offers(),
 			"round":draft.round_index,"credits":int(value.aggregate.currency),"cash":draft.cash(),"cpu_reports":pending.get("reports",[]).size(),
+			"playoff_seeds":draft.playoff_seeds.duplicate(),
 			"can_shop":state=="doubleheader_paid" and EarnedNamedBase.paired_shop_window(draft),
 			"can_play":EarnedNamedBase.paired_play_ready(draft),
 			"results":draft.results.duplicate(true)}

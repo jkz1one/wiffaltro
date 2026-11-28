@@ -192,7 +192,23 @@ class PrivateReturnFork extends PrivateFirstFork:
 	pass
 
 class PrivateFollowupFork extends PrivateFirstFork:
-	pass
+	func _begin_playoffs() -> bool:
+		var codec=load("res://src/gameplay/season/successor_live_play_v1/codec.gd")
+		if career==null or not codec.CommonStart.detached_earned_doubleheader(career.start_basis):
+			return super._begin_playoffs()
+		# The owned last regular operation stops after exact authored seeding,
+		# even when every playoff game is CPU-only. Future bracket transactions
+		# consume physical reports; never create automatic/fallback scores here.
+		if round_index!=10 or phase!=Phase.REGULAR or results.size()!=30 or player_results.size()!=10 \
+				or not playoff_seeds.is_empty() or not semifinals.is_empty() or not final_fixture.is_empty() or champion!=-1 \
+				or not physical.projecting or physical.cursor!=20 or physical.cursor!=physical.reports.size(): return false
+		var ranked: Array[Dictionary]=standings()
+		if ranked.size()!=6: return false
+		for row: Dictionary in ranked.slice(0,4): playoff_seeds.append(int(row.team))
+		for pair: int in range(2):
+			semifinals.append({"id":30+pair,"round":10,"home":playoff_seeds[pair],"away":playoff_seeds[3-pair]})
+		phase=Phase.SEMIFINAL
+		return true
 
 class PrivateSemifinalFork extends PrivateFirstFork:
 	pass
@@ -360,7 +376,8 @@ static func _unplayed_bracket(candidate: SeasonState) -> bool:
 	if candidate.phase!=SeasonState.Phase.SEMIFINAL or candidate.results.size()!=30 or candidate.player_results.size()!=10 or candidate.physical.cursor!=20 or not candidate.final_fixture.is_empty() or candidate.champion!=-1: return false
 	var seeds: Array=[]
 	for row: Dictionary in candidate.standings().slice(0,4): seeds.append(int(row.team))
-	if seeds.size()!=4 or not seeds.has(0) or not Live.same(candidate.playoff_seeds,seeds): return false
+	var earned: bool=candidate.career!=null and Live.CommonStart.detached_earned_doubleheader(candidate.career.start_basis)
+	if seeds.size()!=4 or (not earned and not seeds.has(0)) or not Live.same(candidate.playoff_seeds,seeds): return false
 	var games: Array=[]
 	for pair: int in range(2):
 		games.append({"id":30+pair,"round":10,"home":seeds[pair],"away":seeds[3-pair]})
@@ -378,7 +395,8 @@ static func _inspect_followup(source: SeasonState, pending: Dictionary, fixture:
 	var fixtures: Dictionary=_round_fixtures(source.round_index)
 	var complete: bool=pending.reports.size()==fixtures.npc.size()
 	var regular_end: bool=complete and source.round_index==9
-	if regular_end and not _clinched_regular_end(source,fixtures): return {}
+	var earned: bool=Live.CommonStart.detached_earned_doubleheader(source.career.start_basis)
+	if regular_end and not earned and not _clinched_regular_end(source,fixtures): return {}
 	var candidate: SeasonState=_detached(source,PrivateFollowupFork)
 	if candidate==null or Live.scope(candidate) or not Live.capture(candidate).is_empty(): return {}
 	detached_calls+=1

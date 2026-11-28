@@ -196,8 +196,12 @@ static func _paired_current(session: SeasonState) -> bool:
 		and Paired.Live._earned_pair_first_shop_prefix(session.build)
 
 static func paired_shop_window(session: SeasonState) -> bool:
-	return session!=null and session.round_index>=1 and session.round_index<=PAIRED_PAID_LIMIT and _paired_current(session) \
-		and session.physical.pending.is_empty() and session.pending_fixture().get("id")==3*session.round_index
+	if session==null or session.round_index<1 or not _paired_current(session) or not session.physical.pending.is_empty(): return false
+	var fixture: Dictionary=session.pending_fixture()
+	if session.phase==SeasonState.Phase.SEMIFINAL:
+		return session.round_index==PAIRED_PAID_LIMIT and fixture.get("id") in [30,31] \
+			and (fixture.get("home")==0 or fixture.get("away")==0)
+	return fixture.get("id")==3*session.round_index
 
 static func paired_play_ready(session: SeasonState) -> bool:
 	return _paired_current(session) and Paired.Live.earned_regular_play_ready(session)
@@ -272,7 +276,7 @@ static func local_draft(value: Variant, live: bool=false) -> SeasonState:
 		if not session.results.is_empty() or session.build.cash()!=0: return null
 	elif playoffs.is_empty():
 		if session.phase==SeasonState.Phase.SEMIFINAL:
-			if Equipment.DugoutTitle.semifinal_pair(session).is_empty(): return null
+			if not (Paired._unplayed_semifinals(session) if paired else not Equipment.DugoutTitle.semifinal_pair(session).is_empty()): return null
 		elif not paired and not Equipment._regular_boundary(session,rounds.size()): return null
 	else:
 		var destination:=Equipment.finish(session)

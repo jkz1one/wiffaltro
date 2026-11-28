@@ -170,7 +170,9 @@ static func _runtime_context(season: SeasonState, d1: bool=false) -> bool:
 				or (season.round_index==EARNED_PAIRED_PAID_LIMIT and not season.physical.pending.is_empty()) \
 				or not season.physical.needed.is_empty() or season.physical.projecting): return false
 		if season.round_index==10:
-			if not (_completed_postseason_shape(season) if season.phase==SeasonState.Phase.COMPLETE else _semifinal_checkpoint_shape(season)): return false
+			if paired_earned:
+				if not _earned_regular_close_shape(season): return false
+			elif not (_completed_postseason_shape(season) if season.phase==SeasonState.Phase.COMPLETE else _semifinal_checkpoint_shape(season)): return false
 		elif season.round_index in [3,4,5,6,7,8,9]:
 			if not _followup_settled_shape(season): return false
 		elif season.round_index==2:
@@ -266,9 +268,9 @@ static func _pair_settled_shape(season: SeasonState) -> bool:
 
 # This is shape, not payout authority. Named replay still replays every
 # result, authenticates clubs' prior workload, and applies each real Shop event.
-# The boot lane can settle through leg 9. Leg 10 and playoffs stay on their
-# own turnover boundary, where nonqualifying clubs need a separate exit.
-const EARNED_PAIRED_PAID_LIMIT: int=9
+# Owned regular play ends at the real earned bracket. Neither seeded
+# qualifier nor eliminated club may claim an unplayed postseason result.
+const EARNED_PAIRED_PAID_LIMIT: int=10
 
 static func _earned_round_events(reward: Dictionary, admission: Dictionary, game: int) -> bool:
 	return reward.get("op")=="successor_reward" and reward.get("id")=="game:%d"%game \
@@ -373,6 +375,13 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 	var late_open: Dictionary=late_shop_open(season.round_index)
 	var opened: bool=(season.round_index==6 and build.revision() in [16,17]) or (not late_open.is_empty() and build.revision()==int(late_open.rev)+1)
 	return _paid_pair_journal(build,season.round_index) and whole(build._visit.get("number"),season.round_index,season.round_index) and build._visit.get("open")==opened
+
+# Forward earned regular-to-postseason handoff, no playoff result yet.
+static func _earned_regular_close_shape(season: SeasonState) -> bool:
+	if season.get_script()!=Runtime or not season.physical.pending.is_empty() or season.physical.projecting \
+			or not season.physical.needed.is_empty() or not season.physical.error.is_empty(): return false
+	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	return projection._unplayed_semifinals(season) and _earned_regular_paid_journal(season.build,10)
 
 # Concrete pre-semifinal save only. No launch or playoff result is admitted.
 # The history gate below reconstructs seeds from the independently paid rows.
