@@ -331,6 +331,44 @@ static func _project_earned_cpu_bracket(source: SeasonState, reports: Array) -> 
 	settled.current=Live.capture(settled.settlement)
 	return settled if not settled.current.is_empty() else {}
 
+# Only earned Doubleheader's fully paid regular archive reaches this
+# geometry. Leave the earlier sealed (1-v-4 only) private draft unchanged.
+static func _earned_club_semifinal_pair(source: SeasonState) -> Dictionary:
+	if source==null or source.career==null or not Live.scope(source) \
+			or not Live.CommonStart.detached_earned_doubleheader(source.career.start_basis) \
+			or not _unplayed_semifinals(source) or source.physical.reports.size()!=20: return {}
+	var position: int=source.playoff_seeds.find(0)
+	if position<0 or position>3: return {}
+	var slot: int=mini(position,3-position)
+	var seeds: Array=source.playoff_seeds
+	var human: Dictionary={"id":30+slot,"round":10,"home":int(seeds[slot]),"away":int(seeds[3-slot])}
+	var other_slot: int=1-slot
+	var other: Dictionary={"id":30+other_slot,"round":10,"home":int(seeds[other_slot]),"away":int(seeds[3-other_slot])}
+	if 0 not in [human.home,human.away] or 0 in [other.home,other.away] \
+			or not Live.same(source.pending_fixture(),human) or not Live.same(source.semifinals[other_slot],other): return {}
+	return {"human":human,"other":other,"seed":position+1}
+
+# Pure match opening, never a save lease or a score/payout. The exact
+# signed history is checked here, then the native match and content request
+# come from the carried club, not from a caller-supplied roster or bracket.
+static func earned_club_semifinal_opening(source: SeasonState) -> Dictionary:
+	var bracket:=_earned_club_semifinal_pair(source)
+	if bracket.is_empty() or not Live._paid_history_valid(source): return {}
+	var fixture: Dictionary=bracket.human
+	var state: MatchState=GeneralOps._source_public_make_match(source)
+	var field: FieldDefinition=SeasonState.field_for_fixture(fixture,source)
+	if state==null or field==null or not state.stadium.is_empty() or not state.sure_shot.enable_current_evidence(): return {}
+	var hash:=Request._for_materialized_wallet(source,fixture,state,field)
+	if hash.is_empty(): return {}
+	var club: TeamMatchState=state.home_team if fixture.home==0 else state.away_team
+	var live: Dictionary={"format":"installed-earned-doubleheader-semifinal-v1","request":hash,
+		"equipped":state.gear_usage.equipped,"held":club.tactics.held,
+		"field_supply":[club.field_supply.receipt,club.field_supply.retired,club.field_supply.capacity],
+		"scout":club.scouted_recipe,"copy":club.copy_source,"insurance":club.tactics.insured_receipt,
+		"track_walks":club.tactics.track_walks}
+	return {"state":state,"field":field,"fixture":fixture,"other":bracket.other,"seed":bracket.seed,
+		"binding":{"version":1,"request":JSON.stringify(live,"",true,true).sha256_text()}}
+
 # Only frozen human result ingestion on the detached authenticated paid fork.
 static func semifinal_projection(season: SeasonState) -> bool:
 	return season!=null and season.get_script()==PrivateSemifinalFork and season.physical!=null and season.physical.projecting and season.physical.pending.is_empty()
