@@ -1305,14 +1305,19 @@ func _installed_dugout_d1_cpu_done(runner: Node,view: Dictionary,problem: String
 	show_season()
 
 func settle_installed_dugout_d1(expected: PackedByteArray) -> void:
-	if not _installed_dugout_d1_round_menu(expected): return
+	var prior: String=installed_dugout_d1_draft.get("state","")
+	var final: bool=prior=="doubleheader_club_managed_final_held"
+	if final:
+		if _busy or saved_bytes!=expected or installed_dugout_d1_reading() or is_instance_valid(ai_runner) \
+				or is_instance_valid(lab) or menu==null or not menu.visible or menu.page!="home": return
+	elif not _installed_dugout_d1_round_menu(expected): return
 	_busy=true
-	if installed_dugout_d1_draft.get("state")=="doubleheader_club_semifinals_held":
-		notice="Settling the earned semifinals… Keep this window open."
+	if final or prior=="doubleheader_club_semifinals_held":
+		notice="Settling the earned final… Keep this window open." if final else "Settling the earned semifinals… Keep this window open."
 		show_season()
 		await get_tree().process_frame
 		await get_tree().process_frame
-		if saved_bytes!=expected or installed_dugout_d1_draft.get("state")!="doubleheader_club_semifinals_held":
+		if saved_bytes!=expected or installed_dugout_d1_draft.get("state")!=prior:
 			_busy=false
 			return
 	var view:=Store.settle_installed_dugout_d1_round(self)

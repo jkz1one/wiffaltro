@@ -539,28 +539,37 @@ static func earned_club_managed_final_held_shape(value: Variant) -> bool:
 # Validate with native Final settlement on the new disposable paid fork.
 # The owning operation retains only the evidence, not this paid candidate.
 static func _earned_club_managed_final_held(paid: Dictionary,value: Variant) -> bool:
-	if not earned_club_managed_final_held_shape(value): return false
+	return not _earned_club_managed_final_result(paid,value).is_empty()
+
+# Reuse the same detached, fully checked result for the separate payment.
+static func _earned_club_managed_final_result(paid: Dictionary,value: Variant) -> Dictionary:
+	if not earned_club_managed_final_held_shape(value): return {}
 	var opened:=_earned_club_managed_final_opening(paid)
-	if opened.is_empty() or not Live.same(opened.binding,value.binding): return false
+	if opened.is_empty() or not Live.same(opened.binding,value.binding): return {}
 	var candidate: SeasonState=opened.season
 	var before_results: Array=candidate.results.duplicate(true)
 	var before_player: Array=candidate.player_results.duplicate(true)
 	var before_reports: Array=candidate.physical.reports.duplicate()
-	var expected_reward: Dictionary=candidate.build._bank.view().rewards.duplicate(true)
+	var before_wallet: Dictionary=candidate.build._bank.view()
+	var expected_reward: Dictionary=before_wallet.rewards.duplicate(true)
 	var shape: Dictionary={"human":value.human,"reports":[]}
-	if not GeneralPending._doubleheader_shape(shape,Live.Catalog.game_signature()): return false
+	if not GeneralPending._doubleheader_shape(shape,Live.Catalog.game_signature()): return {}
 	var projected:=GeneralPending._project_candidate(candidate,shape)
 	if projected.has("error") or projected.has("fixture") or projected.get("candidate")!=candidate or Live.scope(candidate) \
 			or candidate.phase!=SeasonState.Phase.COMPLETE or candidate.results.size()!=33 or candidate.player_results.size()!=12 \
 			or candidate.physical.cursor!=21 or candidate.physical.projecting or not candidate.physical.needed.is_empty() \
 			or not candidate.physical.error.is_empty() or not Live.same(candidate.results.slice(0,32),before_results) \
 			or not Live.same(candidate.player_results.slice(0,11),before_player) or not Live.same(candidate.physical.reports,before_reports) \
-			or not GeneralPending._receipts(candidate): return false
+			or not GeneralPending._receipts(candidate): return {}
 	var match_row: Dictionary=candidate.player_results.back()
 	expected_reward["32"]=SeasonState._winner(match_row)==0
-	return Live.whole(match_row.get("id"),32,32) and Live.same(match_row,candidate.results.back()) \
-		and match_row.away_runs==value.human[1] and match_row.home_runs==value.human[2] \
-		and candidate.champion==SeasonState._winner(match_row) and Live.same(candidate.build._bank.view().rewards,expected_reward)
+	var winner: int=SeasonState._winner(match_row)
+	var after: Dictionary=candidate.build._bank.view()
+	if not Live.whole(match_row.get("id"),32,32) or not Live.same(match_row,candidate.results.back()) \
+			or match_row.away_runs!=value.human[1] or match_row.home_runs!=value.human[2] \
+			or winner!=candidate.champion or after.cash<before_wallet.cash or not Live.same(after.rewards,expected_reward):
+		return {}
+	return {"candidate":candidate,"before":before_wallet.cash,"wallet":after,"champion":winner,"club_won":winner==0}
 
 # A CPU final consumes fixture 32 only after the native two-semifinal
 # projection has proved elimination and emitted the exact final request.

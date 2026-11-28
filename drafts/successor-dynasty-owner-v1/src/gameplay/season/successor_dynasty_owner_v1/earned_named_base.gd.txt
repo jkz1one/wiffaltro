@@ -345,6 +345,33 @@ static func _club_semifinal_payment_shape(value: Variant,held: Dictionary) -> bo
 		and Archive.C.whole(f.round,11,11) and Archive.C.whole(f.home,0,5) and Archive.C.whole(f.away,0,5) \
 		and f.home!=f.away and f.neutral==true and value.club_won==(f.home==0 or f.away==0) and Archive.C.primitive(value)
 
+# Never accept a claimed payment, champion or wallet as authority.
+static func club_managed_final_payment(source: SeasonState,value: Dictionary) -> Dictionary:
+	var paid:=_club_managed_final_projection(source,value)
+	var terminal:=Paired._earned_club_managed_final_result(paid,value.get("club_managed_final"))
+	if terminal.is_empty(): return {}
+	var receipt: Dictionary={"version":1,"managed":32,"before":terminal.before,"cash":terminal.wallet.cash,
+		"champion":terminal.champion,"club_won":terminal.club_won,"wallet":terminal.wallet}
+	return receipt if _club_managed_final_payment_shape(receipt,value) else {}
+
+static func _club_managed_final_payment_shape(receipt: Variant,value: Dictionary) -> bool:
+	if not Archive.C.keys(receipt,["version","managed","before","cash","champion","club_won","wallet"]) \
+			or not Archive.C.whole(receipt.version,1,1) or not Archive.C.whole(receipt.managed,32,32) \
+			or not Archive.C.whole(receipt.before,0,2147483647) or not Archive.C.whole(receipt.cash,int(receipt.before),2147483647) \
+			or not Archive.C.whole(receipt.champion,0,5) or not receipt.club_won is bool \
+			or not receipt.wallet is Dictionary or not Archive.C.whole(receipt.wallet.get("cash"),int(receipt.cash),int(receipt.cash)) \
+			or not receipt.wallet.get("rewards") is Dictionary or not Archive.C.primitive(receipt): return false
+	var prior: Dictionary=value.club_semifinals_paid
+	var f: Dictionary=prior.final
+	var h: Array=value.club_managed_final.human
+	if not Archive.C.whole(h[1],0,9999) or not Archive.C.whole(h[2],0,9999) or h[1]==h[2]: return false
+	var winner: int=int(f.away if h[1]>h[2] else f.home)
+	var keys: Dictionary=prior.wallet.rewards.duplicate(true)
+	if keys.has("32"): return false
+	keys["32"]=winner==0
+	return receipt.before==prior.cash and receipt.champion==winner and receipt.club_won==(winner==0) \
+		and Archive.C.same(receipt.wallet.rewards,keys)
+
 static func _route_value(value: Variant) -> bool:
 	if not value is Dictionary: return false
 	if target(value)=="doubleheader" and (value.has("playoffs") \
@@ -385,6 +412,9 @@ static func _route_value(value: Variant) -> bool:
 		if not fields.has("club_semifinals_paid") or not value.club_semifinals_paid.club_won \
 				or fields.has("club_cpu_final") or not Paired.earned_club_managed_final_held_shape(value.club_managed_final): return false
 		fields.append("club_managed_final")
+	if value.has("club_managed_final_paid"):
+		if not fields.has("club_managed_final") or not _club_managed_final_payment_shape(value.club_managed_final_paid,value): return false
+		fields.append("club_managed_final_paid")
 	if value.has("club_close"):
 		if not fields.has("club_cpu_final") or not _cpu_close_shape_for(value.club_close,"semifinal") \
 				or not Progress.valid(value.club_close.aggregate): return false
@@ -452,8 +482,12 @@ static func _local_draft(value: Variant,live: bool,verified_current: bool) -> Se
 								var close:=_club_cpu_close_record_from_terminal(value,terminal.candidate)
 								if close.is_empty() or not Archive.C.same(close,value.club_close): return null
 						elif value.has("club_managed_final"):
-							var checked:=_club_managed_final_projection(session,value)
-							if not Paired._earned_club_managed_final_held(checked,value.club_managed_final): return null
+							if value.has("club_managed_final_paid"):
+								var final_payment:=club_managed_final_payment(session,value)
+								if final_payment.is_empty() or not Archive.C.same(final_payment,value.club_managed_final_paid): return null
+							else:
+								var checked:=_club_managed_final_projection(session,value)
+								if not Paired._earned_club_managed_final_held(checked,value.club_managed_final): return null
 						else:
 							var paid:=club_semifinal_payment(session,value.club_semifinal,value.club_other_semifinal)
 							if paid.is_empty() or not Archive.C.same(paid,value.club_semifinals_paid): return null
@@ -573,8 +607,13 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 						computed.value.club_cpu_final=value.club_cpu_final
 						computed.value.club_semifinals_paid=value.club_semifinals_paid
 					elif value.has("club_managed_final"):
-						var checked:=_club_managed_final_projection(actual.draft,value)
-						if not Paired._earned_club_managed_final_held(checked,value.club_managed_final): return {}
+						if value.has("club_managed_final_paid"):
+							var final_payment:=club_managed_final_payment(actual.draft,value)
+							if final_payment.is_empty() or not Archive.C.same(final_payment,value.club_managed_final_paid): return {}
+							computed.value.club_managed_final_paid=final_payment
+						else:
+							var checked:=_club_managed_final_projection(actual.draft,value)
+							if not Paired._earned_club_managed_final_held(checked,value.club_managed_final): return {}
 						computed.value.club_semifinals_paid=value.club_semifinals_paid
 						computed.value.club_managed_final=value.club_managed_final
 					else:
