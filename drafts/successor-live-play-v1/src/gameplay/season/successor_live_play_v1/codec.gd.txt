@@ -164,12 +164,11 @@ static func _runtime_context(season: SeasonState, d1: bool=false) -> bool:
 	if paired_earned and (not OS.has_feature("wiffaltro_catalog_forward_v1") or not Admissions.paired_draft_only(season)): return false
 	if Admissions.paired_draft_only(season):
 		if (season.career.start_basis.get("kind")==CommonStart.KIND and not paired_earned) or not season.ownership._events.is_empty(): return false
-		# Only the installed opening leg is admitted. Its held evidence still
-		# crosses the full paired verifier; the detached projector has no
-		# independent persistence authority.
+		# The installed owner may hold either leg of the first pair. The
+		# exact fixture and full paired verifier still own physical evidence.
 		if paired_earned and season.get_script()==Runtime and (season.round_index not in [0,1] \
 				or (season.round_index==0 and not season.physical.reports.is_empty()) \
-				or (season.round_index==1 and not season.physical.pending.is_empty()) \
+				or (season.round_index==1 and not season.physical.pending.is_empty() and not return_session_ready(season)) \
 				or not season.physical.needed.is_empty() or season.physical.projecting): return false
 		if season.round_index==10:
 			if not (_completed_postseason_shape(season) if season.phase==SeasonState.Phase.COMPLETE else _semifinal_checkpoint_shape(season)): return false
@@ -207,7 +206,7 @@ static func _first_leg_shape(season: SeasonState) -> bool:
 	var physical=season.physical
 	if physical.projecting!=detached or not physical.needed.is_empty() or not physical.error.is_empty() or physical.cursor!=2 or (not detached and physical.reports.size()!=2): return false
 	if not physical.pending.is_empty():
-		if not return_human_ready(season.build) or not projection.bound_shape(physical.pending) or physical.pending.human[0]!=3: return false
+		if not return_session_ready(season) or not projection.bound_shape(physical.pending) or physical.pending.human[0]!=3: return false
 	for index: int in range(2):
 		if physical.reports[index].get("fixture")!=index+1: return false
 	var build: SeasonBuild=season.build
@@ -606,6 +605,16 @@ static func _unpurchased_journal(build: SeasonBuild, legs: int) -> Dictionary:
 
 static func return_human_ready(build: SeasonBuild) -> bool:
 	return build.revision()==5 or not unpurchased_return_kind(build).is_empty()
+
+# Installed earned starts admit the actual lawful shop history, not a
+# particular private checkout. Unfinished packs still block starting play.
+# Structural admission is followed by full paid and bound replay.
+static func return_session_ready(season: SeasonState) -> bool:
+	if season==null or season.build==null or season.career==null or season.round_index!=1: return false
+	if not CommonStart.detached_earned_doubleheader(season.career.start_basis):
+		return return_human_ready(season.build)
+	return OS.has_feature("wiffaltro_catalog_forward_v1") and not season.build.pack_pending() \
+		and _earned_pair_first_shop_prefix(season.build)
 
 static func _first_shop_journal(build: SeasonBuild, steps: int) -> bool:
 	if build._events[0].get("op")!="successor_reward" or build._events[1].get("op")!="exotic_admit" or build._events[1].get("id")!="exotic:0": return false

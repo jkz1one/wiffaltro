@@ -3258,11 +3258,13 @@ static func _installed_named_base_source(body: PackedByteArray,value: Dictionary
 static func _installed_named_base_view(body: PackedByteArray,value: Dictionary,draft: SeasonState) -> Dictionary:
 	if EarnedNamedBase.target(value)=="doubleheader":
 		var pending: Dictionary=draft.physical.pending
-		var state: String="doubleheader_paid" if draft.round_index==1 else ("doubleheader_draft" if pending.is_empty() else "doubleheader_held")
+		var state: String="doubleheader_draft" if pending.is_empty() else "doubleheader_held"
+		if draft.round_index==1: state="doubleheader_paid" if pending.is_empty() else "doubleheader_return_held"
 		return {"state":state,"bytes":body.duplicate(),"picks":draft.picks.duplicate(),"offers":draft.offers(),
 			"credits":int(value.aggregate.currency),"cash":draft.cash(),"cpu_reports":pending.get("reports",[]).size(),
 			"can_shop":state=="doubleheader_paid" and EarnedNamedBase.paired_shop_window(draft),
-			"results":draft.results.duplicate(true) if state=="doubleheader_paid" else []}
+			"can_return":state=="doubleheader_paid" and EarnedNamedBase.paired_return_ready(draft),
+			"results":draft.results.duplicate(true) if draft.round_index==1 else []}
 	var view:=_installed_equipment_view(body,value,draft)
 	view.equipment_award=int(value.receipt.total)
 	if EarnedNamedBase.target(value)=="scramble":
@@ -5608,8 +5610,10 @@ static func _open_installed_doubleheader_match(app: Variant,expected: PackedByte
 	var paired: SeasonState=source.draft
 	var live: SeasonState=paired.fork_live()
 	if live==null: return false
+	var leg: int=paired.round_index
+	if leg not in [0,1] or (leg==1 and not EarnedNamedBase.paired_return_ready(live)): return false
 	var opening: Dictionary=EarnedNamedBase.Paired.start(live)
-	if opening.is_empty() or opening.fixture.get("id")!=0 or opening.fixture.get("round")!=0: return false
+	if opening.is_empty() or opening.fixture.get("id")!=3*leg or opening.fixture.get("round")!=leg: return false
 	var state: MatchState=opening.state
 	var field: FieldDefinition=opening.field
 	app.season=live
@@ -5637,8 +5641,9 @@ static func _save_installed_doubleheader_managed(app: Variant,expected: PackedBy
 	return _write_installed_doubleheader_held(source,expected,candidate)
 
 static func _write_installed_doubleheader_held(source: Dictionary,expected: PackedByteArray,candidate: SeasonState) -> Dictionary:
-	if candidate==null or candidate.round_index!=0 or candidate.physical.pending.is_empty(): return {}
-	return _write_installed_doubleheader_checkpoint(source,expected,candidate,[])
+	if candidate==null or candidate.round_index not in [0,1] or candidate.physical.pending.is_empty(): return {}
+	var rounds: Array=source.named_base.get("rounds",[])
+	return _write_installed_doubleheader_checkpoint(source,expected,candidate,rounds)
 
 static func _write_installed_doubleheader_checkpoint(source: Dictionary,expected: PackedByteArray,candidate: SeasonState,rounds: Array) -> Dictionary:
 	if saving or _ticket!=null or expected.is_empty() or expected!=_installed_named_base_bound or not _installed_dugout_d1_lane() \
@@ -5670,7 +5675,7 @@ static func open_installed_dugout_d1_match(app: Variant) -> bool:
 	if not is_instance_valid(app) or app.get_script()!=load("res://src/presentation/season/successor_dynasty_owner_v1/app.gd") \
 			or app.career_owner!=null or app.season!=null or is_instance_valid(app.lab): return false
 	var expected: PackedByteArray=app.saved_bytes
-	if app.installed_dugout_d1_draft.get("state")=="doubleheader_draft":
+	if app.installed_dugout_d1_draft.get("state") in ["doubleheader_draft","doubleheader_paid"]:
 		return _open_installed_doubleheader_match(app,expected)
 	if app.installed_dugout_d1_draft.get("state") in ["equipment_draft","equipment_paid","earnings_draft","earnings_paid","scramble_draft","scramble_paid"]:
 		return _open_installed_equipment_match(app,expected)

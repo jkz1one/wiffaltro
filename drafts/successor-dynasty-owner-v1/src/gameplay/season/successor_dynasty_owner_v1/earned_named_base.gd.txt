@@ -182,14 +182,22 @@ static func _paired_current(session: SeasonState) -> bool:
 	if _paired_opening(session): return true
 	if session==null or session.career==null or session.phase!=SeasonState.Phase.REGULAR \
 			or session.round_index!=1 or session.results.size()!=3 or session.player_results.size()!=1 \
-			or session.physical.reports.size()!=2 or not session.physical.pending.is_empty(): return false
+			or session.physical.reports.size()!=2: return false
+	var pending: Dictionary=session.physical.pending
+	if not pending.is_empty() and (not Paired.Live.return_session_ready(session) \
+			or not Paired.bound_shape(pending) or pending.human[0]!=3): return false
 	return Archive.C.same(session.league_rules,LeagueRules.capture("doubleheader")) \
 		and Archive.C.same(session.schedule,SeasonDoubleheaderRules.schedule()) \
 		and Paired.Live.CommonStart.detached_earned_doubleheader(session.career.start_basis) \
 		and Paired.Live._earned_pair_first_shop_prefix(session.build)
 
 static func paired_shop_window(session: SeasonState) -> bool:
-	return session!=null and session.round_index==1 and _paired_current(session) and not session.pending_fixture().is_empty()
+	return session!=null and session.round_index==1 and _paired_current(session) \
+		and session.physical.pending.is_empty() and not session.pending_fixture().is_empty()
+
+static func paired_return_ready(session: SeasonState) -> bool:
+	return paired_shop_window(session) and Paired.Live.return_session_ready(session) \
+		and session.pending_fixture().get("id")==3
 
 static func paired_shop_step(previous: SeasonState,command: Dictionary) -> SeasonState:
 	if not paired_shop_window(previous) or not Archive.C.primitive(command) \
@@ -344,6 +352,16 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 	var physical: Variant=value.current.get("physical")
 	if not physical is Dictionary or not physical.get("pending") is Dictionary: return {}
 	if not physical.pending.is_empty():
+		# Game 2 was opened from a persisted Game 1 and Shop state. Recreate
+		# that native JSON boundary before verifying its signed fixture. The
+		# prefix below comes only from the replay, never the supplied state.
+		if paired and draft.round_index==1:
+			var api:=Archive._owner()
+			var prefix: Dictionary=api.Adapter.Ordinary.capture(draft)
+			var native: Variant=api._bytes_value(JSON.stringify(prefix,"",true,true).to_utf8_buffer())
+			if prefix.is_empty() or not Archive.C.same(prefix,native): return {}
+			draft=api.Adapter.Ordinary.restore_common(native)
+			if not paired_return_ready(draft): return {}
 		draft.physical.pending=physical.pending.duplicate(true)
 		if not paired and Equipment.pending_plan(draft,true).is_empty(): return {}
 	computed.value.current=capture_current(computed.value,draft)

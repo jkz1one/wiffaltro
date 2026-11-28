@@ -1175,7 +1175,8 @@ func play_installed_dugout_d1(expected: PackedByteArray) -> void:
 	var dynasty_ready: bool=(state in ["dynasty_paid","dynasty_postseason_ready"] and installed_dugout_d1_draft.get("allow_play_next",true)) \
 		or state in ["dynasty_second_ready","dynasty_third_ready"] or (state=="dynasty_draft" and installed_dugout_d1_draft.get("picks",[]).size()==4)
 	var equipment_ready: bool=state in ["equipment_draft","equipment_paid","earnings_draft","earnings_paid","scramble_draft","scramble_paid"] and installed_dugout_d1_draft.get("can_play",false)
-	var paired_ready: bool=state=="doubleheader_draft" and installed_dugout_d1_draft.get("picks",[]).size()==4
+	var paired_ready: bool=(state=="doubleheader_draft" and installed_dugout_d1_draft.get("picks",[]).size()==4) \
+		or (state=="doubleheader_paid" and installed_dugout_d1_draft.get("can_return",false))
 	if _busy or installed_dugout_d1_reading() or (state not in ["ready","paid"] and not dynasty_ready and not equipment_ready and not paired_ready) \
 			or saved_bytes!=expected or menu==null or not menu.visible or menu.page!="home" \
 			or is_instance_valid(_installed_dugout_d1_shop): return
@@ -1254,7 +1255,7 @@ func _finish_installed_dugout_d1_game() -> void:
 		_installed_game_save_status("Your game is still open. This result was not saved. Choose Continue to try again.")
 		return
 	var checked: Dictionary={}
-	if first_save and (_installed_dugout_d1_return.get("state") in ["equipment_held","earnings_held","scramble_held","doubleheader_held"] or \
+	if first_save and (_installed_dugout_d1_return.get("state") in ["equipment_held","earnings_held","scramble_held","doubleheader_held","doubleheader_return_held"] or \
 			(_installed_dugout_d1_return.get("ordinal",0)>=4 and _installed_dugout_d1_return.get("state")=="dynasty_pending")):
 		# The synchronous Store returns this exact view only after the write,
 		# archive check and full bound recapture. Before closing the match,

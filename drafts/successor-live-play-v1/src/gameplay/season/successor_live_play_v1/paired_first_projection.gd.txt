@@ -63,7 +63,7 @@ static func start(source: SeasonState) -> Dictionary:
 	if semifinal:
 		if not Live._sealed_regular_end_shape(source): return {}
 	elif source.phase!=SeasonState.Phase.REGULAR: return {}
-	if source.round_index==1 and not Live.return_human_ready(source.build): return {}
+	if source.round_index==1 and not Live.return_session_ready(source): return {}
 	if source.round_index==2 and not Live._paid_pair_journal(source.build,2) \
 		and Live.unpurchased_next_pair_kind(source).is_empty(): return {}
 	if source.round_index==4 and not Live._unpurchased_completed_legs(source.build,4).is_empty(): return {}
@@ -421,7 +421,7 @@ static func return_projection(season: SeasonState) -> bool:
 # Authenticated first-leg prefix plus ordered return reports. Only the fixed
 # settlement operation requests concrete construction after complete replay.
 static func _inspect_return(source: SeasonState, human: Array, reports: Array, preview_job: bool, produce_settlement: bool) -> Dictionary:
-	if not Live.scope(source) or source.round_index!=1 or not Live.return_human_ready(source.build) \
+	if not Live.scope(source) or source.round_index!=1 or not Live.return_session_ready(source) \
 		or not source.physical.pending.is_empty() or reports.size()>2: return {}
 	var shape: Dictionary={"human":human.duplicate(true),"reports":reports.duplicate(true)}
 	if not GeneralPending._doubleheader_shape(shape,Live.Catalog.game_signature()) or human[0]!=3: return {}
