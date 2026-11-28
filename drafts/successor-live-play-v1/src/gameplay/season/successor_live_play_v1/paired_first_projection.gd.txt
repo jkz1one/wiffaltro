@@ -130,7 +130,7 @@ static func materialize_settlement(source: SeasonState, leg: int=0) -> SeasonSta
 	if authored.is_empty() or not Live.scope(source) or source.round_index!=leg or not bound_shape(source.physical.pending) or source.physical.pending.reports.size()!=authored.npc.size(): return null
 	return _inspect_bound(source,true).get("settlement")
 
-static func _inspect_bound(source: SeasonState, produce_settlement: bool = false, preview_job: bool = false) -> Dictionary:
+static func _bound_inputs(source: SeasonState) -> Dictionary:
 	if not Live.scope(source) or not bound_shape(source.physical.pending): return {}
 	var pending: Dictionary=source.physical.pending.duplicate(true)
 	var pristine: SeasonState=source.fork_live()
@@ -138,13 +138,56 @@ static func _inspect_bound(source: SeasonState, produce_settlement: bool = false
 	pristine.physical.pending.clear()
 	var opening: Dictionary=start(pristine)
 	if opening.is_empty() or not Live.same(opening.binding,pending.binding) or opening.fixture.id!=pending.human[0]: return {}
+	return {"pristine":pristine,"pending":pending,"fixture":opening.fixture}
+
+static func _inspect_bound(source: SeasonState, produce_settlement: bool = false, preview_job: bool = false) -> Dictionary:
+	var bound:=_bound_inputs(source)
+	if bound.is_empty(): return {}
 	if source.round_index==10:
-		return _inspect_semifinal(pristine,pending,opening.fixture,preview_job,produce_settlement)
+		return _inspect_semifinal(bound.pristine,bound.pending,bound.fixture,preview_job,produce_settlement)
 	if source.round_index>=2 and human_enabled(source.round_index):
-		return _inspect_followup(pristine,pending,opening.fixture,preview_job,produce_settlement)
+		return _inspect_followup(bound.pristine,bound.pending,bound.fixture,preview_job,produce_settlement)
 	if source.round_index==1:
-		return _inspect_return(pristine,pending.human,pending.reports,preview_job,produce_settlement)
-	return _inspect(pristine,pending.human,pending.reports,produce_settlement)
+		return _inspect_return(bound.pristine,bound.pending.human,bound.pending.reports,preview_job,produce_settlement)
+	return _inspect(bound.pristine,bound.pending.human,bound.pending.reports,produce_settlement)
+
+# Fixed cold archive replay only. Starts with a newly reconstructed canonical
+# earned opening, replays each physical suffix and actual Shop command, and
+# returns nothing until the unchanged full validator checks all paid history.
+# No writer/individual game entry takes a caller-authored prefix or trust flag.
+static func replay_earned_regular_archive(opening: SeasonState, journal: Array, current_pending: Dictionary) -> Dictionary:
+	if not Live.scope(opening) or not Live.CommonStart.detached_earned_doubleheader(opening.career.start_basis) \
+			or opening.round_index!=0 or not opening.physical.pending.is_empty() or journal.size()>Live.EARNED_PAIRED_PAID_LIMIT: return {}
+	var named=load("res://src/gameplay/season/successor_dynasty_owner_v1/earned_named_base.gd")
+	var draft: SeasonState=opening
+	for row: Variant in journal:
+		if not Live.keys(row,["pending","shop"]) or not row.pending is Dictionary or not row.shop is Array or row.shop.size()>128: return {}
+		var leg: int=draft.round_index
+		if leg>0:
+			draft=named._paired_replay_boundary(draft)
+			if draft==null: return {}
+		draft.physical.pending=row.pending.duplicate(true)
+		if leg<2:
+			draft=materialize_settlement(draft,leg)
+		else:
+			var bound:=_bound_inputs(draft)
+			if bound.is_empty() or bound.pending.reports.size()!=_round_fixtures(leg).npc.size() \
+					or not _followup_input(bound.pristine,bound.pending,false,true): return {}
+			draft=_inspect_followup_physical(bound.pristine,bound.pending,bound.fixture,false,true).get("settlement")
+		if draft==null or draft.round_index!=leg+1 or not named._paired_current(draft): return {}
+		for command: Variant in row.shop:
+			if not command is Dictionary: return {}
+			draft=named.paired_shop_step(draft,command)
+			if draft==null: return {}
+	if not current_pending.is_empty():
+		if draft.round_index>0:
+			draft=named._paired_replay_boundary(draft)
+			if draft==null: return {}
+		draft.physical.pending=current_pending.duplicate(true)
+	# Ordinary.capture verifies the complete archived paid prefix, any live
+	# held result, exact workload/source and all native opponent reports.
+	var final: Dictionary=Live.capture(draft)
+	return {} if final.is_empty() else {"draft":draft,"current":final}
 
 # Frozen Pending queues its already shape-checked archive before recording
 # the human result. Only this exact private projection can carry that queue.
@@ -385,13 +428,19 @@ static func _unplayed_bracket(candidate: SeasonState) -> bool:
 
 # The original resolver authenticates exact ordered NPC data. Fixed owned
 # producers may materialize a paid owner only after exact terminal replay.
-static func _inspect_followup(source: SeasonState, pending: Dictionary, fixture: Dictionary, preview_job: bool, produce_settlement: bool) -> Dictionary:
-	if source.round_index<2 or not human_enabled(source.round_index): return {}
-	if produce_settlement and not settlement_enabled(source.round_index): return {}
+static func _followup_input(source: SeasonState, pending: Dictionary, preview_job: bool, produce_settlement: bool) -> bool:
+	if source.round_index<2 or not human_enabled(source.round_index): return false
+	if produce_settlement and not settlement_enabled(source.round_index): return false
 	var limit: int=report_limit(source.round_index)
-	if pending.reports.size()>limit or (preview_job and pending.reports.size()>=limit): return {}
-	if Live._capture_structural(source).is_empty(): return {}
-	if not Live._paid_history_valid(source): return {}
+	if pending.reports.size()>limit or (preview_job and pending.reports.size()>=limit): return false
+	return not Live._capture_structural(source).is_empty()
+
+static func _inspect_followup(source: SeasonState, pending: Dictionary, fixture: Dictionary, preview_job: bool, produce_settlement: bool) -> Dictionary:
+	if not _followup_input(source,pending,preview_job,produce_settlement) or not Live._paid_history_valid(source): return {}
+	return _inspect_followup_physical(source,pending,fixture,preview_job,produce_settlement)
+
+# Inspect the physical suffix; the fixed entry paths own the history check.
+static func _inspect_followup_physical(source: SeasonState, pending: Dictionary, fixture: Dictionary, preview_job: bool, produce_settlement: bool) -> Dictionary:
 	var fixtures: Dictionary=_round_fixtures(source.round_index)
 	var complete: bool=pending.reports.size()==fixtures.npc.size()
 	var regular_end: bool=complete and source.round_index==9

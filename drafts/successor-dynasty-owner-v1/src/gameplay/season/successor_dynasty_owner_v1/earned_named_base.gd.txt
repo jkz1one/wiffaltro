@@ -348,24 +348,27 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 	for pick: Variant in picks:
 		if not pick is String or not draft.choose_player(pick): return {}
 	var journal: Array=value.get("rounds",[])
+	if paired:
+		var paired_image: Variant=value.current.get("physical")
+		if not paired_image is Dictionary or not paired_image.get("pending") is Dictionary: return {}
+		var actual: Dictionary=Paired.replay_earned_regular_archive(draft,journal,paired_image.pending)
+		if actual.is_empty(): return {}
+		# Each row was already validated and consumed. No second deep graph
+		# copy is needed just to compare this same immutable input below.
+		if value.has("rounds"): computed.value.rounds=journal
+		computed.value.current=actual.current
+		if not Archive.C.same(computed.value,value): return {}
+		return {"draft":actual.draft,"aggregate":computed.value.aggregate.duplicate(true)}
 	for row: Variant in journal:
 		if not Archive.C.keys(row,["pending","shop"]) or not row.pending is Dictionary \
 				or not row.shop is Array or row.shop.size()>128: return {}
-		var leg: int=draft.round_index
-		if paired and leg>0:
-			draft=_paired_replay_boundary(draft)
-			if draft==null: return {}
 		draft.physical.pending=row.pending.duplicate(true)
-		if paired:
-			draft=Paired.materialize_settlement(draft,leg)
-			if draft==null or not _paired_current(draft): return {}
-		else:
-			var plan:=Equipment.pending_plan(draft,true)
-			if plan.is_empty() or plan.projection.has("fixture") or plan.get("semifinal",false) or plan.get("managed_final",false): return {}
-			draft=plan.projection.candidate
+		var plan:=Equipment.pending_plan(draft,true)
+		if plan.is_empty() or plan.projection.has("fixture") or plan.get("semifinal",false) or plan.get("managed_final",false): return {}
+		draft=plan.projection.candidate
 		for command: Variant in row.shop:
 			if not command is Dictionary: return {}
-			draft=paired_shop_step(draft,command) if paired else Equipment.shop_step(draft,row.pending,command)
+			draft=Equipment.shop_step(draft,row.pending,command)
 			if draft==null: return {}
 	if value.has("rounds"): computed.value.rounds=journal.duplicate(true)
 	var playoffs: Array=value.get("playoffs",[])
@@ -379,11 +382,8 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 	var physical: Variant=value.current.get("physical")
 	if not physical is Dictionary or not physical.get("pending") is Dictionary: return {}
 	if not physical.pending.is_empty():
-		if paired and draft.round_index>0:
-			draft=_paired_replay_boundary(draft)
-			if draft==null: return {}
 		draft.physical.pending=physical.pending.duplicate(true)
-		if not paired and Equipment.pending_plan(draft,true).is_empty(): return {}
+		if Equipment.pending_plan(draft,true).is_empty(): return {}
 	computed.value.current=capture_current(computed.value,draft)
 	if computed.value.current.is_empty() or not Archive.C.same(computed.value,value): return {}
 	return {"draft":draft,"aggregate":computed.value.aggregate.duplicate(true)}
