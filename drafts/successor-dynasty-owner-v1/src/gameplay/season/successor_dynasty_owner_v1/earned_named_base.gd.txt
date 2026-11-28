@@ -257,12 +257,37 @@ static func cpu_close_record(value: Dictionary, session: SeasonState) -> Diction
 		"session_sha256":Life.digest(value.current),"aggregate_sha256":Life.digest(fold.aggregate),
 		"aggregate":fold.aggregate,"receipt":fold.receipt}
 
+# The close binds all physical postseason inputs as well as the immutable
+# regular current. Neither earlier title page nor the paid wallet is edited.
+static func club_cpu_close_record(value: Dictionary,source: SeasonState) -> Dictionary:
+	if not value.has("club_cpu_final"): return {}
+	var paid:=_club_cpu_final_projection(source,value)
+	if paid.is_empty(): return {}
+	var final:=Paired._earned_club_cpu_final_result(paid,value.club_cpu_final)
+	return _club_cpu_close_record_from_terminal(value,final.get("candidate"))
+
+static func _club_cpu_close_record_from_terminal(value: Dictionary,session: SeasonState) -> Dictionary:
+	if not Paired._earned_club_cpu_final_close_scope(session) or not value.get("aggregate") is Dictionary: return {}
+	var basis: Dictionary=session.career.start_basis
+	var id: String="%s:3:close"%basis.get("lineage","")
+	if Life.digest(value.aggregate)!=basis.get("common_sha256"): return {}
+	var folded:=Progress.fold_installed_doubleheader_qualified_loss(value.aggregate,session,id)
+	if folded.is_empty() or folded.receipt.get("finish")!="semifinal" or not Archive.C.same(folded.aggregate.titles,value.aggregate.titles): return {}
+	var exact: Dictionary={"regular":value.current,"managed":value.club_semifinal,"other":value.club_other_semifinal,
+		"paid":value.club_semifinals_paid,"final":value.club_cpu_final}
+	return {"id":id,"ordinal":3,"reason":"complete","league":"doubleheader","tier":0,
+		"session_sha256":Life.digest(exact),"aggregate_sha256":Life.digest(folded.aggregate),
+		"aggregate":folded.aggregate,"receipt":folded.receipt}
+
 static func _cpu_close_shape(close: Variant) -> bool:
+	return _cpu_close_shape_for(close,"missed")
+
+static func _cpu_close_shape_for(close: Variant,finish: String) -> bool:
 	return Archive.C.keys(close,["id","ordinal","reason","league","tier","session_sha256","aggregate_sha256","aggregate","receipt"]) \
 		and Progress._close_id(close.id) and Archive.C.whole(close.ordinal,3,3) and close.reason=="complete" \
 		and close.league=="doubleheader" and Archive.C.whole(close.tier,0,0) \
 		and Archive._digest(close.session_sha256) and Archive._digest(close.aggregate_sha256) \
-		and close.aggregate is Dictionary and close.receipt is Dictionary and close.receipt.get("finish")=="missed"
+		and close.aggregate is Dictionary and close.receipt is Dictionary and close.receipt.get("finish")==finish
 
 # The physical input uses the same JSON boundary as installed regular
 # held games. Binary last-bit adjustments do not alter identity or scores.
@@ -344,6 +369,10 @@ static func _route_value(value: Variant) -> bool:
 		if not fields.has("club_semifinals_paid") or value.club_semifinals_paid.club_won \
 				or not Paired._bound_report(value.club_cpu_final,32): return false
 		fields.append("club_cpu_final")
+	if value.has("club_close"):
+		if not fields.has("club_cpu_final") or not _cpu_close_shape_for(value.club_close,"semifinal") \
+				or not Progress.valid(value.club_close.aggregate): return false
+		fields.append("club_close")
 	return Archive.C.keys(value,fields) \
 		and value.kind==KIND and Archive.C.whole(value.version,1,1) and value.head is Dictionary \
 		and value.offer is Dictionary and not target(value).is_empty() \
@@ -401,7 +430,11 @@ static func _local_draft(value: Variant,live: bool,verified_current: bool) -> Se
 					if value.has("club_semifinals_paid"):
 						if value.has("club_cpu_final"):
 							var checked:=_club_cpu_final_projection(session,value)
-							if checked.is_empty() or Paired._earned_club_cpu_final_result(checked,value.club_cpu_final).is_empty(): return null
+							var terminal:=Paired._earned_club_cpu_final_result(checked,value.club_cpu_final)
+							if terminal.is_empty(): return null
+							if value.has("club_close"):
+								var close:=_club_cpu_close_record_from_terminal(value,terminal.candidate)
+								if close.is_empty() or not Archive.C.same(close,value.club_close): return null
 						else:
 							var paid:=club_semifinal_payment(session,value.club_semifinal,value.club_other_semifinal)
 							if paid.is_empty() or not Archive.C.same(paid,value.club_semifinals_paid): return null
@@ -512,7 +545,12 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 				if value.has("club_semifinals_paid"):
 					if value.has("club_cpu_final"):
 						var checked:=_club_cpu_final_projection(actual.draft,value)
-						if checked.is_empty() or Paired._earned_club_cpu_final_result(checked,value.club_cpu_final).is_empty(): return {}
+						var terminal:=Paired._earned_club_cpu_final_result(checked,value.club_cpu_final)
+						if terminal.is_empty(): return {}
+						if value.has("club_close"):
+							var close:=_club_cpu_close_record_from_terminal(value,terminal.candidate)
+							if close.is_empty() or not Archive.C.same(close,value.club_close): return {}
+							computed.value.club_close=close
 						computed.value.club_cpu_final=value.club_cpu_final
 						computed.value.club_semifinals_paid=value.club_semifinals_paid
 					else:
@@ -524,7 +562,8 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 			elif not Paired._earned_club_semifinal_held_bound(actual.draft,value.club_semifinal): return {}
 			computed.value.club_semifinal=value.club_semifinal
 		if not Archive.C.same(computed.value,value): return {}
-		var aggregate: Dictionary=computed.value.cpu_close.aggregate if value.has("cpu_close") else computed.value.aggregate
+		var aggregate: Dictionary=computed.value.club_close.aggregate if value.has("club_close") else ( \
+			computed.value.cpu_close.aggregate if value.has("cpu_close") else computed.value.aggregate)
 		return {"draft":actual.draft,"aggregate":aggregate.duplicate(true)}
 	for row: Variant in journal:
 		if not Archive.C.keys(row,["pending","shop"]) or not row.pending is Dictionary \

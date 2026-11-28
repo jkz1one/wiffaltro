@@ -533,6 +533,24 @@ static func _earned_club_cpu_final_result(paid: Dictionary,row: Variant) -> Dict
 	candidate.physical.projecting=false
 	return {"result":result,"champion":candidate.champion,"candidate":candidate}
 
+static func _earned_club_cpu_final_close_scope(season: SeasonState) -> bool:
+	if season==null or season.get_script()!=PrivateEarnedClubSemifinal or season.career==null \
+			or not Live.CommonStart.detached_earned_doubleheader(season.career.start_basis) \
+			or season.phase!=SeasonState.Phase.COMPLETE or season.round_index!=10 or season.picks.size()!=4 \
+			or season.physical==null or season.physical.projecting or not season.physical.pending.is_empty() \
+			or not season.physical.needed.is_empty() or not season.physical.error.is_empty() \
+			or season.physical.cursor!=22 or season.physical.reports.size()!=22 or season.results.size()!=33 \
+			or season.player_results.size()!=11 or not season.playoff_seeds.has(0) \
+			or season.champion<1 or season.champion>5: return false
+	var club: Dictionary=season.player_results.back()
+	var final: Dictionary=season.results.back()
+	return Live.whole(club.get("id"),30,31) and SeasonState._winner(club)!=0 \
+		and (Live.whole(club.get("away"),0,0) or Live.whole(club.get("home"),0,0)) \
+		and season.build._bank.view().rewards.get(str(int(club.id)))==false \
+		and not season.build._bank.view().rewards.has("32") and Live.whole(final.get("id"),32,32) \
+		and Live.whole(final.get("away"),1,5) and Live.whole(final.get("home"),1,5) and final.get("neutral")==true \
+		and season.champion==SeasonState._winner(final) and _bound_report(season.physical.reports[21],32)
+
 static func _projected_earned_club_cpu_final(season: SeasonState,fixture: Dictionary) -> Dictionary:
 	if not season.physical.projecting or not season.physical.pending.is_empty() or season.round_index!=10 \
 			or season.champion!=-1 or season.physical.cursor!=21 or season.physical.reports.size() not in [21,22] \
