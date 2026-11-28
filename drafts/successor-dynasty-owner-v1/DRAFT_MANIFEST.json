@@ -1004,8 +1004,8 @@
     {
       "backup_path": "drafts/successor-dynasty-owner-v1/src/gameplay/season/successor_dynasty_owner_v1/earned_named_base.gd.txt",
       "restore_path": "src/gameplay/season/successor_dynasty_owner_v1/earned_named_base.gd",
-      "bytes": 24925,
-      "sha256": "495f1c783a2a158b522dcc32a5f4cdadbfb7bf88715c459a6df8c524fd771d73"
+      "bytes": 25265,
+      "sha256": "547d72e49164f681a89e62f75f1422f8a54041b7fabe46aeb535f254c186605b"
     }
   ]
 }

@@ -292,15 +292,20 @@ static func local_draft(value: Variant, live: bool=false) -> SeasonState:
 			or Life.digest(basis)!=value.offer.get("basis_sha256"): return null
 	return session
 
-# The next fixture signs the persisted paid state. Only the independently
-# replayed prefix may cross the same native JSON boundary as live play.
-static func _paired_native_prefix(draft: SeasonState) -> SeasonState:
+# Only replay() calls this canonical boundary, on its own replay-derived
+# predecessor (never on value.current). It retains the exact structural
+# recapture and native numeric conversion; it is not save/owner admission.
+# The next mandatory operation validates its paid history along with the new
+# signed result: paired settlement for a journal row, or full capture_current
+# for the final held result. Do not replay that same history twice here.
+static func _paired_replay_boundary(draft: SeasonState) -> SeasonState:
 	if not paired_return_ready(draft) and not paired_next_opening_ready(draft) and not paired_next_return_ready(draft): return null
 	var api:=Archive._owner()
-	var prefix: Dictionary=api.Adapter.Ordinary.capture(draft)
+	var prefix: Dictionary=api.Adapter.Ordinary._capture_structural(draft)
+	if prefix.is_empty(): return null
 	var native: Variant=api._bytes_value(JSON.stringify(prefix,"",true,true).to_utf8_buffer())
-	if prefix.is_empty() or not Archive.C.same(prefix,native): return null
-	var ready: SeasonState=api.Adapter.Ordinary.restore_common(native)
+	if not Archive.C.same(prefix,native): return null
+	var ready: SeasonState=api.Adapter.Ordinary._restore_shape(native,false)
 	return ready if paired_return_ready(ready) or paired_next_opening_ready(ready) or paired_next_return_ready(ready) else null
 
 # Re-derive both proven seasons and the exact close, then the draft and its
@@ -352,7 +357,7 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 		var leg: int=draft.round_index
 		if paired and leg in [1,2,3]:
 			if leg==1 and not row.shop.is_empty(): return {}
-			draft=_paired_native_prefix(draft)
+			draft=_paired_replay_boundary(draft)
 			if draft==null: return {}
 		draft.physical.pending=row.pending.duplicate(true)
 		if paired:
@@ -379,7 +384,7 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 	if not physical is Dictionary or not physical.get("pending") is Dictionary: return {}
 	if not physical.pending.is_empty():
 		if paired and draft.round_index in [1,2,3]:
-			draft=_paired_native_prefix(draft)
+			draft=_paired_replay_boundary(draft)
 			if draft==null: return {}
 		draft.physical.pending=physical.pending.duplicate(true)
 		if not paired and Equipment.pending_plan(draft,true).is_empty(): return {}
