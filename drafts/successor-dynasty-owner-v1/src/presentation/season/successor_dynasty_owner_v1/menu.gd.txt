@@ -637,15 +637,23 @@ func _display_standard_record(history: Dictionary) -> void:
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
 	var lane: String=draft.get("state","")
-	if lane in ["doubleheader_cpu_playoffs","doubleheader_cpu_complete"]:
-		var completed: bool=lane=="doubleheader_cpu_complete"
-		_label(_body,"DOUBLEHEADER BASE · PLAYOFFS COMPLETE" if completed else "DOUBLEHEADER BASE · CPU PLAYOFFS",24)
+	if lane in ["doubleheader_cpu_playoffs","doubleheader_cpu_complete","doubleheader_cpu_closed"]:
+		var closed: bool=lane=="doubleheader_cpu_closed"
+		var completed: bool=lane!="doubleheader_cpu_playoffs"
+		var label: String="SEASON CLOSED" if closed else ("PLAYOFFS COMPLETE" if completed else "CPU PLAYOFFS")
+		_label(_body,"DOUBLEHEADER BASE · "+label,24)
 		_note("Yard Club did not qualify. %d Season Cash · %d Club Credits retained."%[draft.cash,draft.credits])
 		if completed:
 			var winner: int=int(draft.cpu_champion)
 			if winner in [1,2,3,4,5]: _note("League champion: %s. Playoff results are saved."%SeasonState.TEAM_NAMES[winner])
 			for game: Dictionary in draft.results.slice(30):
 				_note("%s · %d–%d · %s at %s"%["Final" if game.id==32 else "Semifinal",int(game.away_runs),int(game.home_runs),SeasonState.TEAM_NAMES[int(game.away)],SeasonState.TEAM_NAMES[int(game.home)]])
+			if closed:
+				var receipt: Dictionary=draft.close_receipt
+				_note("%d Club Credits banked at Season Close · %d finish + %d record."%[
+					receipt.total,receipt.finish_award,receipt.record_bonus])
+			elif draft.get("close_available",false):
+				_bound_button(_body,"CLOSE DOUBLEHEADER SEASON",Callable(app,"request_installed_dugout_d1_close").bind(draft.bytes.duplicate()))
 		else:
 			var verified: int=int(draft.cpu_playoff_reports)
 			_note("%d of 3 CPU playoff games saved. Yard Club has no playoff game or payout."%verified)

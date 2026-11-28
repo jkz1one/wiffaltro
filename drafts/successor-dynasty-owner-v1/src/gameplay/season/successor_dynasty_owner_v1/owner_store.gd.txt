@@ -3336,10 +3336,16 @@ static func _installed_named_base_view(body: PackedByteArray,value: Dictionary,d
 		var state: String="doubleheader_held" if not pending.is_empty() else ("doubleheader_paid" if draft.round_index>0 else "doubleheader_draft")
 		var cpu: Array=value.get("cpu_playoffs",[])
 		if draft.round_index==EarnedNamedBase.PAIRED_PAID_LIMIT and draft.physical.pending.is_empty() and not draft.playoff_seeds.has(0):
-			if draft.phase==SeasonState.Phase.COMPLETE: state="doubleheader_cpu_complete"
+			if draft.phase==SeasonState.Phase.COMPLETE:
+				state="doubleheader_cpu_closed" if value.has("cpu_close") else "doubleheader_cpu_complete"
 			elif EarnedNamedBase.Paired._unplayed_semifinals(draft): state="doubleheader_cpu_playoffs"
+		var closed: bool=state=="doubleheader_cpu_closed"
+		var close: Dictionary=value.get("cpu_close",{})
 		return {"state":state,"bytes":body.duplicate(),"picks":draft.picks.duplicate(),"offers":draft.offers(),
-			"round":draft.round_index,"credits":int(value.aggregate.currency),"cash":draft.cash(),"cpu_reports":pending.get("reports",[]).size(),
+			"round":draft.round_index,"credits":int(close.aggregate.currency if closed else value.aggregate.currency),
+			"cash":draft.cash(),"cpu_reports":pending.get("reports",[]).size(),
+			"close_available":state=="doubleheader_cpu_complete",
+			"close_receipt":close.receipt.duplicate(true) if closed else {},
 			"cpu_playoff_reports":cpu.size(),"cpu_champion":draft.champion,
 			"playoff_seeds":draft.playoff_seeds.duplicate(),
 			"can_shop":state=="doubleheader_paid" and EarnedNamedBase.paired_shop_window(draft),
@@ -5084,6 +5090,33 @@ static func complete_installed_dugout_d1(app: Variant) -> Dictionary:
 	_invalidate()
 	_installed_dugout_d1_bound={"bytes":body,"page":source.pin,"draft":native}
 	return installed_dugout_d1_view(body)
+
+# The existing verified menu lease is the only entry. Keep the previous
+# raw wrapper in .bak and do not rewrite either immutable title page.
+static func complete_installed_doubleheader_missed(app: Variant) -> Dictionary:
+	if not _installed_dugout_d1_entry_app(app) or app.season!=null or _ticket!=null \
+			or app.installed_dugout_d1_draft.get("state")!="doubleheader_cpu_complete": return {}
+	var expected: PackedByteArray=app.saved_bytes
+	if expected.is_empty() or expected!=_installed_named_base_bound or not _installed_dugout_d1_lane(): return {}
+	var source:=_installed_dugout_d1_source()
+	if source.is_empty() or source.bytes!=expected or not source.has("named_base") \
+			or EarnedNamedBase.target(source.named_base)!="doubleheader" or source.named_base.has("cpu_close"): return {}
+	var draft:=EarnedNamedBase._verified_doubleheader_current(source.named_base)
+	var close:=EarnedNamedBase.cpu_close_record(source.named_base,draft)
+	if close.is_empty(): return {}
+	var value: Dictionary=source.named_base.duplicate()
+	value.cpu_close=close
+	var staged:=_native_materialize(value)
+	if staged.is_empty() or not Codec.same(staged.value.cpu_close,close): return {}
+	var again:=_installed_dugout_d1_source()
+	if again.is_empty() or again.bytes!=expected or again.pages!=source.pages or not _matches(expected): return {}
+	saving=true
+	var saved:=_write_exact_bytes(staged.bytes,expected)
+	saving=false
+	if not saved: return {}
+	_installed_named_base_bound=staged.bytes
+	_remember_verified_doubleheader({"bytes":staged.bytes,"named_base":staged.value})
+	return _installed_named_base_view(staged.bytes,staged.value,draft)
 
 # The action receives only the exact live App and uses its verified Store
 # binding. New bytes add one close receipt; no earlier history is rewritten.

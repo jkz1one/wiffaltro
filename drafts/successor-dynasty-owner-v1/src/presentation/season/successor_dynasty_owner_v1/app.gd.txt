@@ -1324,8 +1324,13 @@ func request_installed_dugout_d1_close(expected: PackedByteArray) -> void:
 	if not _installed_dugout_d1_close_ready(expected): return
 	_lifecycle_action="installed_dugout_d1_complete"
 	_lifecycle_bytes=expected.duplicate()
-	_lifecycle_dialog.title=("Close Dynasty Season %d?"%int(installed_dugout_d1_draft.get("ordinal",1))) \
-		if installed_dugout_d1_draft.get("state")=="dynasty_regular_done" else "Close Dugout D%d?"%int(installed_dugout_d1_draft.get("tier",1))
+	match installed_dugout_d1_draft.get("state"):
+		"dynasty_regular_done":
+			_lifecycle_dialog.title="Close Dynasty Season %d?"%int(installed_dugout_d1_draft.get("ordinal",1))
+		"doubleheader_cpu_complete":
+			_lifecycle_dialog.title="Close Doubleheader Base?"
+		_:
+			_lifecycle_dialog.title="Close Dugout D%d?"%int(installed_dugout_d1_draft.get("tier",1))
 	_lifecycle_dialog.dialog_text="Bank verified career progress and Club Credits once. Your season results and Season Cash stay saved."
 	_lifecycle_dialog.popup_centered(Vector2i(640,240))
 	_lifecycle_dialog.get_cancel_button().grab_focus()
@@ -1333,8 +1338,11 @@ func request_installed_dugout_d1_close(expected: PackedByteArray) -> void:
 func _complete_installed_dugout_d1(expected: PackedByteArray) -> void:
 	if not _installed_dugout_d1_close_ready(expected): return
 	_busy=true
-	var view:=Store.complete_installed_earned_dynasty(self) if installed_dugout_d1_draft.get("state")=="dynasty_regular_done" \
-		else Store.complete_installed_dugout_d1(self)
+	var view: Dictionary
+	match installed_dugout_d1_draft.get("state"):
+		"dynasty_regular_done": view=Store.complete_installed_earned_dynasty(self)
+		"doubleheader_cpu_complete": view=Store.complete_installed_doubleheader_missed(self)
+		_: view=Store.complete_installed_dugout_d1(self)
 	_busy=false
 	if view.is_empty(): notice="Season Close could not be confirmed. Use Continue to check the saved career."
 	else: _open_installed_dugout_d1(view)
