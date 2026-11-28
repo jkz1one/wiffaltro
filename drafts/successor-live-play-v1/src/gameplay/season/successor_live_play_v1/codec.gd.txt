@@ -164,11 +164,12 @@ static func _runtime_context(season: SeasonState, d1: bool=false) -> bool:
 	if paired_earned and (not OS.has_feature("wiffaltro_catalog_forward_v1") or not Admissions.paired_draft_only(season)): return false
 	if Admissions.paired_draft_only(season):
 		if (season.career.start_basis.get("kind")==CommonStart.KIND and not paired_earned) or not season.ownership._events.is_empty(): return false
-		# The installed owner may hold the opening of the next pair. The
-		# exact authored fixture and original replay still own the evidence.
-		if paired_earned and season.get_script()==Runtime and (season.round_index not in [0,1,2] \
+		# The installed owner may settle the third authored round. Future
+		# physical fixtures still require their own signed installed path.
+		if paired_earned and season.get_script()==Runtime and (season.round_index not in [0,1,2,3] \
 				or (season.round_index==0 and not season.physical.reports.is_empty()) \
 				or (season.round_index==1 and not season.physical.pending.is_empty() and not return_session_ready(season)) \
+				or (season.round_index==3 and not season.physical.pending.is_empty()) \
 				or not season.physical.needed.is_empty() or season.physical.projecting): return false
 		if season.round_index==10:
 			if not (_completed_postseason_shape(season) if season.phase==SeasonState.Phase.COMPLETE else _semifinal_checkpoint_shape(season)): return false
@@ -269,14 +270,38 @@ static func _pair_settled_shape(season: SeasonState) -> bool:
 # Visit 1 command. Neither the shape nor an empty Visit 2 is payout proof.
 static func _earned_pair_settled_journal(build: SeasonBuild) -> bool:
 	if build==null or build._bank==null: return false
-	var finish: int=build._events.size()-2
-	if not _earned_pair_shop_events(build,finish): return false
-	var reward: Dictionary=build._events[finish]
-	var admission: Dictionary=build._events[finish+1]
 	var bank: Dictionary=build._bank.view().rewards
-	return reward.get("op")=="successor_reward" and reward.get("id")=="game:3" \
-		and admission.get("op")=="exotic_admit" and admission.get("id")=="exotic:3" \
+	return _earned_pair_paid_prefix(build,build._events.size()) \
 		and keys(bank,["0","3"]) and bank["0"] is bool and bank["3"] is bool
+
+static func _earned_pair_paid_prefix(build: SeasonBuild,end: int) -> bool:
+	var finish: int=end-2
+	return end<=build._events.size() and _earned_pair_shop_events(build,finish) \
+		and _earned_round_events(build._events[finish], build._events[finish+1],3)
+
+static func _earned_round_events(reward: Dictionary, admission: Dictionary, game: int) -> bool:
+	return reward.get("op")=="successor_reward" and reward.get("id")=="game:%d"%game \
+		and admission.get("op")=="exotic_admit" and admission.get("id")=="exotic:%d"%game
+
+static func _earned_next_first_paid_journal(build: SeasonBuild) -> bool:
+	if build==null or build._bank==null or not whole(build._visit.get("number"),3,3): return false
+	var count: int=build._events.size()
+	var third: int=-1
+	for i: int in range(4,count-1):
+		if _earned_round_events(build._events[i],build._events[i+1],6):
+			if third!=-1: return false
+			third=i
+	if third<0 or not _earned_pair_paid_prefix(build,third): return false
+	var first_shop: int=third+2
+	if count-first_shop>128 or build._visit.get("open",false)!=(count>first_shop): return false
+	for index: int in range(first_shop,count):
+		var cmd: Dictionary=build._events[index]
+		if not whole(cmd.get("rev"),index,index) or not SeasonBuild.SHOP_OPS.has(cmd.get("op","")): return false
+		if index==first_shop:
+			if not same(cmd,{"id":"shop-open:%d"%index,"rev":index,"op":"open"}): return false
+		elif cmd.op=="open": return false
+	var bank: Dictionary=build._bank.view().rewards
+	return keys(bank,["0","3","6"]) and bank["0"] is bool and bank["3"] is bool and bank["6"] is bool
 
 # Enter a fresh pair from either the original test dialects or a fully
 # replayed earned first pair with a lawful, arbitrary Visit 1 journal.
@@ -335,6 +360,8 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 	if not physical.pending.is_empty():
 		if season.round_index==6 and not _signed_visit6_journal(build): return false
 		if projection.late_revision(season.round_index)>=0 and not _paired_late_start(season): return false
+	if season.round_index==3 and CommonStart.detached_earned_doubleheader(season.career.start_basis):
+		return _earned_next_first_paid_journal(build)
 	if not unpurchased_next_reverse_kind(season).is_empty(): return true # Physical prefix/order already checked.
 	if season.round_index==4 and not detached and physical.pending.is_empty() \
 			and not _unpurchased_completed_legs(build,4).is_empty():
