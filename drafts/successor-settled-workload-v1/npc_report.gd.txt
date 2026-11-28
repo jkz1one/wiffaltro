@@ -68,7 +68,7 @@ static func _matches(season: SeasonState, fixture: Dictionary, result: Dictionar
 	# authored fixture gives its key dialect. Extraction reuse remains 4/5 only.
 	var v4_return: bool=v4 and fixture.round==1 and game in [4,5]
 	var request: String=Request.for_live_regular(season,fixture,state,field) if v4 else Request.for_context(season,fixture,state,field)
-	if v4 and season.phase==SeasonState.Phase.COMPLETE and game in [31,32]:
+	if v4 and season.phase==SeasonState.Phase.COMPLETE and game in [30,31,32]:
 		# Exact postseason rows already came through authenticated geometry;
 		# hydrate their authored integral key and use the live V4 wallet dialect.
 		var canonical: Dictionary={"id":game,"round":int(fixture.round),"home":int(fixture.home),"away":int(fixture.away)}

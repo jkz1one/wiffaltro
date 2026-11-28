@@ -203,6 +203,8 @@ static func npc_queue(season: SeasonState) -> bool:
 # The mutable projecting field alone never admits any materialized owner.
 static func projected_npc_fixture(season: SeasonState, fixture: Dictionary) -> Dictionary:
 	if season==null or not Live.same(season.league_rules,LeagueRules.capture("doubleheader")) or season.picks.size()!=4: return {}
+	if season.get_script()==PrivateEarnedCpuBracket:
+		return _projected_earned_cpu_postseason(season,fixture)
 	if season.round_index==10:
 		return _projected_final_npc(season,fixture) if season.phase==SeasonState.Phase.FINAL else _projected_semifinal_npc(season,fixture)
 	if season.phase!=SeasonState.Phase.REGULAR: return {}
@@ -255,6 +257,67 @@ class PrivateFollowupFork extends PrivateFirstFork:
 
 class PrivateSemifinalFork extends PrivateFirstFork:
 	pass
+
+# Fixed detached type for a genuine earned postseason with all four CPU
+# clubs. The frozen runtime still creates, resolves and pays the fixtures.
+class PrivateEarnedCpuBracket extends PrivateFirstFork:
+	pass
+
+static func _projected_earned_cpu_postseason(season: SeasonState, fixture: Dictionary) -> Dictionary:
+	if season==null or season.get_script()!=PrivateEarnedCpuBracket or season.round_index!=10 \
+			or season.champion!=-1 or season.player_results.size()!=10 or season.playoff_seeds.size()!=4 \
+			or 0 in season.playoff_seeds or season.semifinals.size()!=2 or season.physical==null \
+			or not season.physical.projecting or not season.physical.pending.is_empty(): return {}
+	var cursor: int=season.physical.cursor
+	if cursor<20 or cursor>22 or season.results.size()!=10+cursor or season.physical.reports.size()<cursor \
+			or season.physical.reports.size()>23: return {}
+	var authored: Dictionary
+	if cursor<22:
+		if season.phase!=SeasonState.Phase.SEMIFINAL or not season.final_fixture.is_empty(): return {}
+		authored=season.semifinals[cursor-20]
+	else:
+		if season.phase!=SeasonState.Phase.FINAL: return {}
+		authored=season.final_fixture
+	if not Live.whole(authored.get("id"),10+cursor,10+cursor) \
+			or not Live.whole(authored.get("round"),10+int(cursor==22),10+int(cursor==22)) \
+			or not Live.whole(authored.get("home"),1,5) or not Live.whole(authored.get("away"),1,5) \
+			or authored.home==authored.away or (cursor==22 and authored.get("neutral")!=true): return {}
+	var canonical: Dictionary={"id":int(authored.id),"round":int(authored.round),"home":int(authored.home),"away":int(authored.away)}
+	if cursor==22: canonical.neutral=true
+	return canonical if Live.same(authored,canonical) and Live.same(fixture,canonical) else {}
+
+# Start only at the real, completely paid, unqualified handoff. Reseed on
+# a private non-persistable fork because General owns the native bracket.
+# Reports can only satisfy their next regenerated physical request.
+static func earned_cpu_bracket(source: SeasonState, reports: Array) -> Dictionary:
+	if source==null or not Live.scope(source) or not Live.CommonStart.detached_earned_doubleheader(source.career.start_basis) \
+			or not _unplayed_semifinals(source) or source.playoff_seeds.has(0) or reports.size()>3 \
+			or source.physical.reports.size()!=20 or not Live._paid_history_valid(source): return {}
+	for index: int in range(reports.size()):
+		if not reports[index] is Dictionary or not _bound_report(reports[index],30+index): return {}
+	var candidate: SeasonState=_detached(source,PrivateEarnedCpuBracket)
+	if candidate==null or Live.scope(candidate): return {}
+	candidate.phase=SeasonState.Phase.REGULAR
+	candidate.playoff_seeds.clear()
+	candidate.semifinals.clear()
+	candidate.physical.projecting=true
+	candidate.physical.reports.append_array(reports.duplicate(true))
+	var complete: bool=candidate._begin_playoffs()
+	if not Live.same(candidate.playoff_seeds,source.playoff_seeds) or not Live.same(candidate.semifinals,source.semifinals) \
+			or not Live.same(candidate.results.slice(0,30),source.results) or not Live.same(candidate.player_results,source.player_results) \
+			or not Live.same(candidate.physical.reports,source.physical.reports+reports) \
+			or candidate.physical.cursor!=20+reports.size() or not candidate.physical.error.is_empty() \
+			or not Live.same(candidate.build._events,source.build._events) \
+			or not Live.same(candidate.build._bank.view(),source.build._bank.view()): return {}
+	if reports.size()<3:
+		if complete or candidate.champion!=-1 or candidate.results.size()!=30+reports.size(): return {}
+		var needed:=_projected_earned_cpu_postseason(candidate,candidate.physical.needed)
+		return _job(candidate,needed) if not needed.is_empty() else {}
+	if not complete or candidate.results.size()!=33 or not candidate.physical.needed.is_empty() \
+			or _complete_geometry(candidate).is_empty() or not GeneralPending._receipts(candidate): return {}
+	candidate.physical.projecting=false
+	var settled:=_concrete_settlement(candidate)
+	return settled if not settled.is_empty() and not Live.capture(settled.settlement).is_empty() else {}
 
 # Only frozen human result ingestion on the detached authenticated paid fork.
 static func semifinal_projection(season: SeasonState) -> bool:
@@ -342,7 +405,8 @@ static func _complete_geometry(season: SeasonState) -> Dictionary:
 		if typeof(team.get("draw")) not in [TYPE_FLOAT,TYPE_INT] or not is_finite(float(team.draw)): return {}
 	var seeds: Array=[]
 	for row: Dictionary in season.standings().slice(0,4): seeds.append(int(row.team))
-	if seeds.size()!=4 or not Live.same(season.playoff_seeds,seeds) or 0 not in [seeds[0],seeds[3]]: return {}
+	var earned_cpu: bool=season.career!=null and Live.CommonStart.detached_earned_doubleheader(season.career.start_basis) and 0 not in seeds
+	if seeds.size()!=4 or not Live.same(season.playoff_seeds,seeds) or (not earned_cpu and 0 not in [seeds[0],seeds[3]]): return {}
 	var semis: Array=[]
 	for pair: int in range(2): semis.append({"id":30+pair,"round":10,"home":seeds[pair],"away":seeds[3-pair]})
 	if not Live.same(season.semifinals,semis) or season.results[30].get("id")!=30 or season.results[31].get("id")!=31 or season.results[32].get("id")!=32: return {}

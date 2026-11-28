@@ -43,7 +43,7 @@ static func verify(season: SeasonState) -> bool:
 		played[game]=row
 		expected[str(fixture.away)][str(game)]=row.away_runs>row.home_runs
 		expected[str(fixture.home)][str(game)]=row.home_runs>row.away_runs
-	if season.player_results.size()!=(11 if complete else rounds): return false
+	if season.player_results.size()!=(11 if complete and season.playoff_seeds.has(0) else rounds): return false
 	# Geometry and score ranges are established above before native standings.
 	if sealed:
 		for team: Dictionary in season.teams:

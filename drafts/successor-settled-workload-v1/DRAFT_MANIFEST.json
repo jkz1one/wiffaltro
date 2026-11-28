@@ -12,14 +12,14 @@
     {
       "backup_path": "drafts/successor-settled-workload-v1/npc_report.gd.txt",
       "restore_path": "src/gameplay/season/successor_settled_workload_v1/npc_report.gd",
-      "bytes": 6213,
-      "sha256": "f1befa550a2b69a0c66acad84494b4110539265878595f26c2c5ccf3fbd22c94"
+      "bytes": 6216,
+      "sha256": "7aab6f3e3bdd0004825ccd0dbfdb9db26914240184de0f27d69d2eb0115469d5"
     },
     {
       "backup_path": "drafts/successor-settled-workload-v1/completeness.gd.txt",
       "restore_path": "src/gameplay/season/successor_settled_workload_v1/completeness.gd",
-      "bytes": 7299,
-      "sha256": "9738f7a585ee623e6a52895ab0d534779945734e7c0813b6578f870e74abf04a"
+      "bytes": 7331,
+      "sha256": "2f8a0066a64c189f02dd6d865024df9ddc2c61f2d192e36134e3317c5d3ba6ae"
     }
   ]
 }

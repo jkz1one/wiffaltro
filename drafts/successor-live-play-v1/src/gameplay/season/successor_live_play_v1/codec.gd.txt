@@ -381,7 +381,14 @@ static func _earned_regular_close_shape(season: SeasonState) -> bool:
 	if season.get_script()!=Runtime or not season.physical.pending.is_empty() or season.physical.projecting \
 			or not season.physical.needed.is_empty() or not season.physical.error.is_empty(): return false
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
-	return projection._unplayed_semifinals(season) and _earned_regular_paid_journal(season.build,10)
+	if not _earned_regular_paid_journal(season.build,10): return false
+	if season.phase!=SeasonState.Phase.COMPLETE: return projection._unplayed_semifinals(season)
+	if season.round_index!=10 or season.picks.size()!=4 or season.playoff_seeds.has(0) \
+			or season.physical.cursor!=23 or projection._complete_geometry(season).is_empty(): return false
+	var opening: Dictionary=PairSchedule.authored_phase(9)
+	return same(season.results.map(func(row):return row.get("id")),range(33)) \
+		and same(season.player_results.map(func(row):return row.get("id")),opening.prior_humans+[opening.human.id]) \
+		and same(season.physical.reports.map(func(row):return row.get("fixture")),opening.prior_npcs+opening.npc.map(func(row):return row.id)+[30,31,32])
 
 # Concrete pre-semifinal save only. No launch or playoff result is admitted.
 # The history gate below reconstructs seeds from the independently paid rows.
