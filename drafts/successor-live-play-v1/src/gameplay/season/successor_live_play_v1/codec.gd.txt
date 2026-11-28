@@ -378,9 +378,13 @@ static func _followup_settled_shape(season: SeasonState) -> bool:
 
 # Forward earned regular-to-postseason handoff, no playoff result yet.
 static func _earned_regular_close_shape(season: SeasonState) -> bool:
-	if season.get_script()!=Runtime or not season.physical.pending.is_empty() or season.physical.projecting \
-			or not season.physical.needed.is_empty() or not season.physical.error.is_empty(): return false
 	var projection=load("res://src/gameplay/season/successor_live_play_v1/paired_first_projection.gd")
+	# Same runtime-only persisted shape. The one official detached
+	# semifinal recorder additionally needs this exact pre-record context.
+	var detaching: bool=projection.earned_club_semifinal_projection(season)
+	if (season.get_script()!=Runtime and not detaching) or not season.physical.pending.is_empty() \
+			or season.physical.projecting!=detaching or not season.physical.needed.is_empty() \
+			or not season.physical.error.is_empty(): return false
 	if not _earned_regular_paid_journal(season.build,10): return false
 	if season.phase!=SeasonState.Phase.COMPLETE: return projection._unplayed_semifinals(season)
 	if season.round_index!=10 or season.picks.size()!=4 or season.playoff_seeds.has(0) \

@@ -663,6 +663,14 @@ func _installed_dugout_d1() -> void:
 			elif verified in [0,1,2]:
 				_bound_button(_body,"PLAY CPU PLAYOFF GAME %d OF 3"%(verified+1),Callable(app,"play_installed_dugout_d1_cpu").bind(draft.bytes.duplicate()))
 		return
+	if lane=="doubleheader_club_semifinal_held":
+		var f: Dictionary=draft.club_semifinal
+		_label(_body,"DOUBLEHEADER BASE · SEMIFINAL SAVED",24)
+		_note("%d–%d · %s at %s"%[draft.club_held_score[0],draft.club_held_score[1],
+			SeasonState.TEAM_NAMES[int(f.away)],SeasonState.TEAM_NAMES[int(f.home)]])
+		_note("Your semifinal is saved. The bracket and Season Cash have not settled.")
+		_note("%d Season Cash · %d Club Credits retained."%[draft.cash,draft.credits])
+		return
 	if lane in ["doubleheader_draft","doubleheader_held","doubleheader_paid"]:
 		var round_index: int=int(draft.round)
 		var shown: int=round_index-1 if lane=="doubleheader_paid" else round_index
@@ -693,7 +701,12 @@ func _installed_dugout_d1() -> void:
 				_bound_button(_body,"SETTLE GAME %d"%(round_index%2+1),Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		else:
 			if draft.can_play:
-				_bound_button(_body,"PLAY PAIR %d, GAME %d"%[floori(round_index/2.0)+1,round_index%2+1],Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
+				var f: Dictionary=draft.club_semifinal
+				var title: String="PLAY PAIR %d, GAME %d"%[floori(round_index/2.0)+1,round_index%2+1]
+				if not f.is_empty():
+					title="PLAY YOUR SEMIFINAL"
+					_note("%s at %s"%[SeasonState.TEAM_NAMES[int(f.away)],SeasonState.TEAM_NAMES[int(f.home)]])
+				_bound_button(_body,title,Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 			if draft.can_shop:
 				_bound_button(_body,"OPEN SHOP",Callable(app,"open_installed_dugout_d1_shop").bind(draft.bytes.duplicate()))
 			for row: Dictionary in draft.results:

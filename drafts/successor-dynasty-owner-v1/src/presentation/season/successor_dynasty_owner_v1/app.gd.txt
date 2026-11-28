@@ -1254,7 +1254,7 @@ func _finish_installed_dugout_d1_game() -> void:
 		_installed_game_save_status("Your game is still open. This result was not saved. Choose Continue to try again.")
 		return
 	var checked: Dictionary={}
-	if first_save and (_installed_dugout_d1_return.get("state") in ["equipment_held","earnings_held","scramble_held","doubleheader_held"] or \
+	if first_save and (_installed_dugout_d1_return.get("state") in ["equipment_held","earnings_held","scramble_held","doubleheader_held","doubleheader_club_semifinal_held"] or \
 			(_installed_dugout_d1_return.get("ordinal",0)>=4 and _installed_dugout_d1_return.get("state")=="dynasty_pending")):
 		# The synchronous Store returns this exact view only after the write,
 		# archive check and full bound recapture. Before closing the match,

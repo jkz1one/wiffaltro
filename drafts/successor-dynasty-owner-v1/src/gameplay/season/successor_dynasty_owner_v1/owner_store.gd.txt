@@ -3339,6 +3339,9 @@ static func _installed_named_base_view(body: PackedByteArray,value: Dictionary,d
 			if draft.phase==SeasonState.Phase.COMPLETE:
 				state="doubleheader_cpu_closed" if value.has("cpu_close") else "doubleheader_cpu_complete"
 			elif EarnedNamedBase.Paired._unplayed_semifinals(draft): state="doubleheader_cpu_playoffs"
+		var club_pair:=EarnedNamedBase.Paired._earned_club_semifinal_pair(draft)
+		var held: Dictionary=value.get("club_semifinal",{})
+		if not held.is_empty(): state="doubleheader_club_semifinal_held"
 		var closed: bool=state=="doubleheader_cpu_closed"
 		var close: Dictionary=value.get("cpu_close",{})
 		return {"state":state,"bytes":body.duplicate(),"picks":draft.picks.duplicate(),"offers":draft.offers(),
@@ -3349,7 +3352,9 @@ static func _installed_named_base_view(body: PackedByteArray,value: Dictionary,d
 			"cpu_playoff_reports":cpu.size(),"cpu_champion":draft.champion,
 			"playoff_seeds":draft.playoff_seeds.duplicate(),
 			"can_shop":state=="doubleheader_paid" and EarnedNamedBase.paired_shop_window(draft),
-			"can_play":EarnedNamedBase.paired_play_ready(draft),
+			"can_play":(not club_pair.is_empty() and held.is_empty()) or EarnedNamedBase.paired_play_ready(draft),
+			"club_semifinal":club_pair.get("human",{}),
+			"club_held_score":held.human.slice(1,3) if not held.is_empty() else [],
 			"results":draft.results.duplicate(true)}
 	var view:=_installed_equipment_view(body,value,draft)
 	view.equipment_award=int(value.receipt.total)
@@ -5718,17 +5723,31 @@ static func _save_installed_equipment_managed(app: Variant,expected: PackedByteA
 	# Leave the live lease in place until the original App closes the game.
 	return _write_installed_equipment_opening(source,expected,current,{})
 
+static func _bound_installed_club_semifinal(expected: PackedByteArray) -> Dictionary:
+	if expected.is_empty() or expected!=_installed_named_base_bound or not _installed_dugout_d1_lane(): return {}
+	var source:=_installed_dugout_d1_source()
+	if source.is_empty() or source.bytes!=expected or not source.has("named_base") \
+			or EarnedNamedBase.target(source.named_base)!="doubleheader": return {}
+	var draft:=EarnedNamedBase._verified_doubleheader_current(source.named_base)
+	if draft==null or EarnedNamedBase.Paired._earned_club_semifinal_pair(draft).is_empty() or not _matches(expected): return {}
+	source.draft=draft
+	return source
+
 # Dedicated paired endpoint: no ordinary single-game lease or synthetic score.
 static func _open_installed_doubleheader_match(app: Variant,expected: PackedByteArray) -> bool:
-	var source:=_bound_installed_named_game(expected)
+	var postseason: bool=not app.installed_dugout_d1_draft.get("club_semifinal",{}).is_empty()
+	var source:=_bound_installed_club_semifinal(expected) if postseason else _bound_installed_named_game(expected)
 	if source.is_empty() or not source.has("named_base") or EarnedNamedBase.target(source.named_base)!="doubleheader": return false
 	var paired: SeasonState=source.draft
 	var live: SeasonState=paired.fork_live()
 	if live==null: return false
 	var leg: int=paired.round_index
-	if not EarnedNamedBase.paired_play_ready(live): return false
-	var opening: Dictionary=EarnedNamedBase.Paired.start(live)
-	if opening.is_empty() or opening.fixture.get("id")!=3*leg or opening.fixture.get("round")!=leg: return false
+	if (postseason and source.named_base.has("club_semifinal")) \
+			or (not postseason and not EarnedNamedBase.paired_play_ready(live)): return false
+	var opening: Dictionary=EarnedNamedBase.Paired._earned_club_semifinal_opening_bound(live) if postseason \
+			else EarnedNamedBase.Paired.start(live)
+	if opening.is_empty() or opening.fixture.get("round")!=leg \
+			or (not postseason and opening.fixture.get("id")!=3*leg): return false
 	var state: MatchState=opening.state
 	var field: FieldDefinition=opening.field
 	app.season=live
@@ -5738,11 +5757,13 @@ static func _open_installed_doubleheader_match(app: Variant,expected: PackedByte
 	app._open_match(state,int(opening.fixture.home)==0,true,field.id)
 	if not is_instance_valid(app.lab) or app.lab._match_state!=state or app.season!=live: return false
 	_installed_dugout_d1_play={"app":weakref(app),"bytes":expected.duplicate(),"season":live,"state":state,
-		"lab":weakref(app.lab),"field":field,"fixture":int(opening.fixture.id),"pair_binding":opening.binding.duplicate(true)}
+		"lab":weakref(app.lab),"field":field,"fixture":int(opening.fixture.id),
+		"club_semifinal":postseason,"pair_binding":opening.binding.duplicate(true)}
 	return installed_dugout_d1_match_bound(app)
 
 static func _save_installed_doubleheader_managed(app: Variant,expected: PackedByteArray) -> Dictionary:
 	if saving or _ticket!=null or not installed_dugout_d1_match_bound(app): return {}
+	if _installed_dugout_d1_play.get("club_semifinal",false): return _save_installed_club_semifinal(app,expected)
 	var source:=_bound_installed_named_game(expected)
 	if source.is_empty() or not source.has("named_base") or EarnedNamedBase.target(source.named_base)!="doubleheader" \
 			or not source.draft.physical.pending.is_empty() \
@@ -5754,6 +5775,31 @@ static func _save_installed_doubleheader_managed(app: Variant,expected: PackedBy
 	candidate.physical.pending={"human":human.duplicate(true),"reports":[],
 		"binding":_installed_dugout_d1_play.pair_binding.duplicate(true)}
 	return _write_installed_doubleheader_held(source,expected,candidate)
+
+# The only owned writer for the qualified human hold. Freeze the exact
+# terminal player evidence without paying it or changing the regular save.
+static func _save_installed_club_semifinal(app: Variant,expected: PackedByteArray) -> Dictionary:
+	var source:=_bound_installed_club_semifinal(expected)
+	if source.is_empty() or source.named_base.has("club_semifinal") \
+			or not Codec.same(EarnedNamedBase.Paired.Live._capture_structural(app.season),source.named_base.current): return {}
+	var human: Array=Adapter.OrdinaryCapture._capture_bound(app,func(): return installed_dugout_d1_match_bound(app))
+	if human.size()!=14 or not installed_dugout_d1_match_bound(app): return {}
+	var held:=EarnedNamedBase.canonical_club_semifinal(human,_installed_dugout_d1_play.pair_binding)
+	if held.is_empty() or not EarnedNamedBase.Paired._earned_club_semifinal_held_bound(source.draft,held): return {}
+	var value: Dictionary=source.named_base.duplicate()
+	value.club_semifinal=held
+	var staged:=_native_materialize(value)
+	if staged.is_empty() or not EarnedNamedBase._route_value(staged.value): return {}
+	var again:=_installed_dugout_d1_source()
+	if again.is_empty() or again.bytes!=expected or again.pages!=source.pages \
+			or not installed_dugout_d1_match_bound(app) or not _matches(expected): return {}
+	saving=true
+	var saved:=_write_exact_bytes(staged.bytes,expected)
+	saving=false
+	if not saved: return {}
+	_installed_named_base_bound=staged.bytes
+	_remember_verified_doubleheader({"bytes":staged.bytes,"named_base":staged.value})
+	return _installed_named_base_view(staged.bytes,staged.value,source.draft)
 
 static func _write_installed_doubleheader_held(source: Dictionary,expected: PackedByteArray,candidate: SeasonState) -> Dictionary:
 	if candidate==null or candidate.round_index<0 or candidate.round_index>=EarnedNamedBase.PAIRED_PAID_LIMIT or candidate.physical.pending.is_empty(): return {}

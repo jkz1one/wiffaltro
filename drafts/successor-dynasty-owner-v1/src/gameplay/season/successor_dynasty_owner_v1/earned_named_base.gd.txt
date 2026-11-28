@@ -264,6 +264,16 @@ static func _cpu_close_shape(close: Variant) -> bool:
 		and Archive._digest(close.session_sha256) and Archive._digest(close.aggregate_sha256) \
 		and close.aggregate is Dictionary and close.receipt is Dictionary and close.receipt.get("finish")=="missed"
 
+# The physical input uses the same JSON boundary as installed regular
+# held games. Binary last-bit adjustments do not alter identity or scores.
+static func canonical_club_semifinal(human: Array,binding: Dictionary) -> Dictionary:
+	var direct: Dictionary={"human":human,"binding":binding}
+	if not Paired.earned_club_semifinal_held_shape(direct) or not Archive.C.primitive(direct): return {}
+	var value: Variant=Archive._owner()._bytes_value(JSON.stringify(direct,"",true,true).to_utf8_buffer())
+	if not Paired.earned_club_semifinal_held_shape(value) or not Archive.C.same(value.binding,binding) \
+			or not Archive.C.same(value.human.slice(0,3),human.slice(0,3)): return {}
+	return value
+
 static func _route_value(value: Variant) -> bool:
 	if not value is Dictionary: return false
 	if target(value)=="doubleheader" and (value.has("playoffs") \
@@ -285,6 +295,10 @@ static func _route_value(value: Variant) -> bool:
 	if value.has("cpu_close"):
 		if not fields.has("cpu_playoffs") or value.cpu_playoffs.size()!=3 or not _cpu_close_shape(value.cpu_close): return false
 		fields.append("cpu_close")
+	if value.has("club_semifinal"):
+		if target(value)!="doubleheader" or not value.has("rounds") or value.rounds.size()!=PAIRED_PAID_LIMIT \
+				or fields.has("cpu_playoffs") or not Paired.earned_club_semifinal_held_shape(value.club_semifinal): return false
+		fields.append("club_semifinal")
 	return Archive.C.keys(value,fields) \
 		and value.kind==KIND and Archive.C.whole(value.version,1,1) and value.head is Dictionary \
 		and value.offer is Dictionary and not target(value).is_empty() \
@@ -333,6 +347,10 @@ static func _local_draft(value: Variant,live: bool,verified_current: bool) -> Se
 		if value.has("cpu_close"):
 			if session.phase!=SeasonState.Phase.COMPLETE: return null
 			if not verified_current and not Archive.C.same(cpu_close_record(value,session),value.cpu_close): return null
+		if value.has("club_semifinal"):
+			var pairing:=Paired._earned_club_semifinal_pair(session)
+			if pairing.is_empty() or pairing.human.id!=value.club_semifinal.human[0] \
+					or (not verified_current and not Paired.earned_club_semifinal_held(session,value.club_semifinal)): return null
 	if rounds.size()!=session.round_index or (not live and (not rounds.is_empty() or not session.physical.pending.is_empty())): return null
 	if rounds.is_empty():
 		if not session.results.is_empty() or session.build.cash()!=0: return null
@@ -433,6 +451,9 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 			var close:=cpu_close_record(computed.value,actual.draft)
 			if close.is_empty(): return {}
 			computed.value.cpu_close=close
+		if value.has("club_semifinal"):
+			if not Paired._earned_club_semifinal_held_bound(actual.draft,value.club_semifinal): return {}
+			computed.value.club_semifinal=value.club_semifinal
 		if not Archive.C.same(computed.value,value): return {}
 		var aggregate: Dictionary=computed.value.cpu_close.aggregate if value.has("cpu_close") else computed.value.aggregate
 		return {"draft":actual.draft,"aggregate":aggregate.duplicate(true)}

@@ -205,6 +205,8 @@ static func projected_npc_fixture(season: SeasonState, fixture: Dictionary) -> D
 	if season==null or not Live.same(season.league_rules,LeagueRules.capture("doubleheader")) or season.picks.size()!=4: return {}
 	if season.get_script()==PrivateEarnedCpuBracket:
 		return _projected_earned_cpu_postseason(season,fixture)
+	if season.get_script()==PrivateEarnedClubSemifinal:
+		return _projected_earned_club_other_semifinal(season,fixture)
 	if season.round_index==10:
 		return _projected_final_npc(season,fixture) if season.phase==SeasonState.Phase.FINAL else _projected_semifinal_npc(season,fixture)
 	if season.phase!=SeasonState.Phase.REGULAR: return {}
@@ -352,8 +354,14 @@ static func _earned_club_semifinal_pair(source: SeasonState) -> Dictionary:
 # signed history is checked here, then the native match and content request
 # come from the carried club, not from a caller-supplied roster or bracket.
 static func earned_club_semifinal_opening(source: SeasonState) -> Dictionary:
+	if source==null or not Live.scope(source) or not Live._paid_history_valid(source): return {}
+	return _earned_club_semifinal_opening_bound(source)
+
+# Called only after the full pure verifier above, the fixed installed
+# revision owner, or the same cold replay's independently proven regular prefix.
+static func _earned_club_semifinal_opening_bound(source: SeasonState) -> Dictionary:
 	var bracket:=_earned_club_semifinal_pair(source)
-	if bracket.is_empty() or not Live._paid_history_valid(source): return {}
+	if bracket.is_empty(): return {}
 	var fixture: Dictionary=bracket.human
 	var state: MatchState=GeneralOps._source_public_make_match(source)
 	var field: FieldDefinition=SeasonState.field_for_fixture(fixture,source)
@@ -368,6 +376,71 @@ static func earned_club_semifinal_opening(source: SeasonState) -> Dictionary:
 		"track_walks":club.tactics.track_walks}
 	return {"state":state,"field":field,"fixture":fixture,"other":bracket.other,"seed":bracket.seed,
 		"binding":{"version":1,"request":JSON.stringify(live,"",true,true).sha256_text()}}
+
+static func earned_club_semifinal_held_shape(value: Variant) -> bool:
+	return Live.keys(value,["human","binding"]) and value.human is Array and value.human.size()==14 \
+		and Live.whole(value.human[0],30,31) and _binding_shape(value.binding)
+
+# Full detached validation. The installed writer uses the suffix only
+# after pinning an exact prior verified paid revision; cold replay already
+# rederives that regular revision. No detached payout leaves this function.
+static func earned_club_semifinal_held(source: SeasonState,value: Variant) -> bool:
+	return source!=null and Live.scope(source) and Live._paid_history_valid(source) \
+		and _earned_club_semifinal_held_bound(source,value)
+
+static func _earned_club_semifinal_held_bound(source: SeasonState,value: Variant) -> bool:
+	if not earned_club_semifinal_held_shape(value): return false
+	var game:=_earned_club_semifinal_opening_bound(source)
+	if game.is_empty() or game.fixture.id!=value.human[0] or not Live.same(game.binding,value.binding): return false
+	var candidate: SeasonState=_detached(source,PrivateEarnedClubSemifinal)
+	if candidate==null or Live.scope(candidate): return false
+	var shape: Dictionary={"human":value.human,"reports":[]}
+	if not GeneralPending._doubleheader_shape(shape,Live.Catalog.game_signature()): return false
+	var projected:=GeneralPending._project_candidate(candidate,shape)
+	if projected.has("error") or projected.get("candidate")!=candidate or not Live.same(projected.get("fixture"),game.other) \
+			or not Live.same(candidate.physical.needed,game.other) or not Live.same(candidate.semifinals,source.semifinals) \
+			or not Live.same(candidate.playoff_seeds,source.playoff_seeds) \
+			or not Live.same(candidate.results.slice(0,30),source.results) \
+			or not Live.same(candidate.player_results.slice(0,10),source.player_results) \
+			or not Live.same(candidate.physical.reports,source.physical.reports) \
+			or _projected_earned_club_other_semifinal(candidate,game.other).is_empty(): return false
+	var played: Dictionary=candidate.player_results.back()
+	return played.id==int(value.human[0]) and played.away_runs==value.human[1] \
+		and played.home_runs==value.human[2] and Live.same(played,candidate.results.back())
+
+class PrivateEarnedClubSemifinal extends PrivateFirstFork:
+	pass
+
+# Just this non-persistable type may validate against the earned regular
+# endpoint while Native General projects its human report. No materialized
+# save, stale wrapper, caller switch, or already-paid game qualifies.
+static func earned_club_semifinal_projection(season: SeasonState) -> bool:
+	return season!=null and season.get_script()==PrivateEarnedClubSemifinal \
+		and season.physical!=null and season.physical.projecting and season.physical.reports.size()==20 \
+		and season.phase==SeasonState.Phase.SEMIFINAL and season.playoff_seeds.has(0) \
+		and _unplayed_semifinals(season)
+
+static func _projected_earned_club_other_semifinal(season: SeasonState,fixture: Dictionary) -> Dictionary:
+	if season==null or season.get_script()!=PrivateEarnedClubSemifinal or season.phase!=SeasonState.Phase.SEMIFINAL \
+			or season.round_index!=10 or season.champion!=-1 or not season.final_fixture.is_empty() \
+			or season.results.size()!=31 or season.player_results.size()!=11 or season.semifinals.size()!=2 \
+			or not season.physical.projecting or not season.physical.pending.is_empty() \
+			or season.physical.cursor!=20 or season.physical.reports.size()!=20: return {}
+	var human: Dictionary=season.pending_fixture()
+	# JSON whole numbers are floats. Test the exact integer semantics
+	# before building the request; Array.has distinguishes 0 from 0.0.
+	if not Live.whole(human.get("id"),30,31) or not Live.whole(human.get("away"),0,5) \
+			or not Live.whole(human.get("home"),0,5) \
+			or not (Live.whole(human.get("away"),0,0) or Live.whole(human.get("home"),0,0)): return {}
+	var id: int=int(human.id)
+	if not Live.whole(season.results.back().get("id"),id,id) \
+			or not Live.whole(season.player_results.back().get("id"),id,id) \
+			or not season.build._bank.view().rewards.has(str(id)): return {}
+	var row: Dictionary=season.semifinals[31-id]
+	if not Live.whole(row.get("id"),61-id,61-id) or not Live.whole(row.get("round"),10,10) \
+			or not Live.whole(row.get("away"),1,5) or not Live.whole(row.get("home"),1,5): return {}
+	var clean: Dictionary={"id":int(row.id),"round":10,"away":int(row.away),"home":int(row.home)}
+	return clean if Live.same(row,clean) and Live.same(fixture,clean) else {}
 
 # Only frozen human result ingestion on the detached authenticated paid fork.
 static func semifinal_projection(season: SeasonState) -> bool:
