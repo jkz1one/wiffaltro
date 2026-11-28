@@ -5973,6 +5973,32 @@ static func _installed_dugout_d1_final_projection(session: SeasonState) -> Dicti
 	return {} if result.is_empty() else {"projection":result,"source":session,"session":session,"round":session.round_index,
 		"count":0,"managed_id":32,"managed_final":true}
 
+# A process-local read lease or a completed native transaction is the
+# only writer of _installed_named_base_bound. Read the exact current
+# content-addressed pages and bytes again, then materialize their shape.
+# Do not accept a raw caller-provided image, trust flag, or stale save.
+static func _bound_installed_cpu_postseason(expected: PackedByteArray) -> Dictionary:
+	if expected.is_empty() or expected!=_installed_named_base_bound or not _installed_dugout_d1_lane(): return {}
+	var source:=_installed_dugout_d1_source()
+	if source.is_empty() or not source.has("named_base") or source.bytes!=expected \
+			or EarnedNamedBase.target(source.named_base)!="doubleheader": return {}
+	var draft:=EarnedNamedBase._verified_doubleheader_current(source.named_base)
+	if draft==null or draft.phase!=SeasonState.Phase.SEMIFINAL \
+			or draft.round_index!=EarnedNamedBase.PAIRED_PAID_LIMIT or draft.playoff_seeds.has(0) \
+			or not EarnedNamedBase.Paired._unplayed_semifinals(draft) or not _matches(expected): return {}
+	source.draft=draft
+	return source
+
+static func _prepare_installed_cpu_postseason(expected: PackedByteArray) -> Dictionary:
+	var source:=_bound_installed_cpu_postseason(expected)
+	if source.is_empty(): return {}
+	var bracket: Array=source.named_base.get("cpu_playoffs",[])
+	if bracket.size()>=3: return {}
+	var proposed:=EarnedNamedBase.Paired._project_earned_cpu_bracket(source.draft,bracket)
+	if proposed.get("fixture",{}).get("id")!=30+bracket.size() or not proposed.get("job") is Dictionary: return {}
+	return {"source":source,"session":source.draft,"projection":{"fixture":proposed.fixture},
+		"round":10,"managed_id":29,"count":bracket.size(),"cpu_playoff":true,"bracket_job":proposed.job}
+
 static func _installed_dugout_d1_pending(expected: PackedByteArray) -> Dictionary:
 	if not expected.is_empty() and expected in [_installed_equipment_bound,_installed_named_base_bound]:
 		var source_equipment:=_bound_installed_named_game(expected)
@@ -5980,13 +6006,6 @@ static func _installed_dugout_d1_pending(expected: PackedByteArray) -> Dictionar
 		var draft: SeasonState=source_equipment.draft
 		if source_equipment.has("named_base") and EarnedNamedBase.target(source_equipment.named_base)=="doubleheader":
 			var leg: int=draft.round_index
-			if leg==EarnedNamedBase.PAIRED_PAID_LIMIT and not draft.playoff_seeds.has(0):
-				var bracket: Array=source_equipment.named_base.get("cpu_playoffs",[])
-				if bracket.size()>=3 or draft.phase!=SeasonState.Phase.SEMIFINAL: return {}
-				var proposed:=EarnedNamedBase.Paired.earned_cpu_bracket(draft,bracket)
-				if proposed.get("fixture",{}).get("id")!=30+bracket.size() or not proposed.get("job") is Dictionary: return {}
-				return {"source":source_equipment,"session":draft,"projection":{"fixture":proposed.fixture},
-					"round":10,"managed_id":29,"count":bracket.size(),"cpu_playoff":true,"bracket_job":proposed.job}
 			if leg<0 or leg>=EarnedNamedBase.PAIRED_PAID_LIMIT or draft.physical.pending.is_empty(): return {}
 			var pending: Dictionary=draft.physical.pending
 			var next:=EarnedNamedBase.Paired.next_npc_fixture(draft)
@@ -6039,7 +6058,8 @@ static func _installed_dugout_d1_round_app(app: Variant) -> bool:
 static func start_installed_dugout_d1_cpu(app: Variant) -> bool:
 	if not _installed_dugout_d1_round_app(app) or not _installed_dugout_d1_cpu.is_empty() or is_instance_valid(app.ai_runner): return false
 	var expected: PackedByteArray=app.saved_bytes
-	var round_plan:=_installed_dugout_d1_pending(expected)
+	var cpu_postseason: bool=app.installed_dugout_d1_draft.get("state")=="doubleheader_cpu_playoffs"
+	var round_plan:=_prepare_installed_cpu_postseason(expected) if cpu_postseason else _installed_dugout_d1_pending(expected)
 	if round_plan.is_empty() or not round_plan.projection.get("fixture") is Dictionary: return false
 	var fixture: Dictionary=round_plan.projection.fixture
 	var paired: bool=round_plan.get("paired_game",false)
@@ -6103,12 +6123,13 @@ static func _finish_installed_dugout_d1_cpu(report: Dictionary,app: Variant,runn
 	app._installed_dugout_d1_cpu_done(runner,view,"The CPU result could not be saved. Your previous checkpoint is unchanged." if view.is_empty() else "")
 
 static func _stage_installed_dugout_d1_cpu(lease: Dictionary,report: Dictionary) -> Dictionary:
+	if lease.get("cpu_playoff",false):
+		var current:=_bound_installed_cpu_postseason(lease.bytes)
+		return {} if current.is_empty() else _stage_installed_doubleheader_postseason(current,lease,report)
 	var round_plan:=_installed_dugout_d1_pending(lease.bytes)
 	if round_plan.is_empty() or round_plan.count!=lease.count or not round_plan.projection.get("fixture") is Dictionary \
 			or round_plan.projection.fixture.id!=lease.fixture or lease.get("dynasty",false)!=round_plan.get("dynasty",false): return {}
 	if lease.get("named_game",false)!=round_plan.get("named_game",false) or lease.get("paired_game",false)!=round_plan.get("paired_game",false): return {}
-	if lease.get("cpu_playoff",false)!=round_plan.get("cpu_playoff",false): return {}
-	if round_plan.get("cpu_playoff",false): return _stage_installed_doubleheader_postseason(round_plan,lease,report)
 	if round_plan.get("paired_game",false): return _stage_installed_doubleheader_cpu(round_plan,lease,report)
 	if round_plan.get("named_game",false): return _stage_installed_equipment_cpu(round_plan,lease.bytes,report)
 	if round_plan.get("dynasty",false): return _stage_installed_earned_dynasty_cpu(round_plan,lease.bytes,report)
@@ -6129,13 +6150,14 @@ static func _stage_installed_dugout_d1_cpu(lease: Dictionary,report: Dictionary)
 			or not Codec.same(recorded.build,prior.build): return {}
 	return _write_installed_dugout_d1_opening(round_plan.source,lease.bytes,recorded,native)
 
-# Each actual bracket report is confirmed against the same runner lease
-# and newly regenerated exact request. No human award or stage is implied.
-static func _stage_installed_doubleheader_postseason(plan: Dictionary,lease: Dictionary,report: Dictionary) -> Dictionary:
-	var source: Dictionary=plan.source
+# The runner lease matches the installed App, source revision and original
+# request. The resolver below regenerates that request while checking the
+# new report, not in a separate replay before it. No human award is implied.
+static func _stage_installed_doubleheader_postseason(source: Dictionary,lease: Dictionary,report: Dictionary) -> Dictionary:
 	var expected: PackedByteArray=lease.bytes
 	if saving or _ticket!=null or expected.is_empty() or expected!=_installed_named_base_bound \
-			or not _installed_dugout_d1_lane() or plan.bracket_job.binding.request!=lease.pair_request: return {}
+			or not _installed_dugout_d1_lane() or source.bytes!=expected \
+			or not BaseArchive._digest(lease.pair_request): return {}
 	var value: Dictionary=source.named_base.duplicate()
 	var journal: Array=value.get("cpu_playoffs",[]).duplicate(true)
 	if journal.size()!=lease.count or journal.size()>=3 or int(lease.fixture)!=30+journal.size(): return {}
@@ -6143,7 +6165,7 @@ static func _stage_installed_doubleheader_postseason(plan: Dictionary,lease: Dic
 		{"fixture":int(lease.fixture),"request":lease.pair_request,"report":report},int(lease.fixture))
 	if row.is_empty(): return {}
 	journal.append(row)
-	var decided:=EarnedNamedBase.Paired.earned_cpu_bracket(plan.session,journal)
+	var decided:=EarnedNamedBase.Paired._project_earned_cpu_bracket(source.draft,journal)
 	if decided.is_empty(): return {}
 	if journal.size()==3:
 		if not decided.get("current") is Dictionary or not decided.get("settlement") is SeasonState: return {}

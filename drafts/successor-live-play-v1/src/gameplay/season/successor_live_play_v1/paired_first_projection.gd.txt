@@ -290,9 +290,16 @@ static func _projected_earned_cpu_postseason(season: SeasonState, fixture: Dicti
 # a private non-persistable fork because General owns the native bracket.
 # Reports can only satisfy their next regenerated physical request.
 static func earned_cpu_bracket(source: SeasonState, reports: Array) -> Dictionary:
+	if source==null or not Live.scope(source) or not Live._paid_history_valid(source): return {}
+	return _project_earned_cpu_bracket(source,reports)
+
+# Only the strict entry above or the fixed installed matching persisted
+# revision may reach the suffix projection. Newly submitted physical
+# reports still pass their original exact independent resolver checks.
+static func _project_earned_cpu_bracket(source: SeasonState, reports: Array) -> Dictionary:
 	if source==null or not Live.scope(source) or not Live.CommonStart.detached_earned_doubleheader(source.career.start_basis) \
 			or not _unplayed_semifinals(source) or source.playoff_seeds.has(0) or reports.size()>3 \
-			or source.physical.reports.size()!=20 or not Live._paid_history_valid(source): return {}
+			or source.physical.reports.size()!=20: return {}
 	for index: int in range(reports.size()):
 		if not reports[index] is Dictionary or not _bound_report(reports[index],30+index): return {}
 	var candidate: SeasonState=_detached(source,PrivateEarnedCpuBracket)
