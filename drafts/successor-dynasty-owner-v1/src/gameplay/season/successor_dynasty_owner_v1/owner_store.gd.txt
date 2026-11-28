@@ -3258,18 +3258,12 @@ static func _installed_named_base_source(body: PackedByteArray,value: Dictionary
 static func _installed_named_base_view(body: PackedByteArray,value: Dictionary,draft: SeasonState) -> Dictionary:
 	if EarnedNamedBase.target(value)=="doubleheader":
 		var pending: Dictionary=draft.physical.pending
-		var state: String="doubleheader_draft" if pending.is_empty() else "doubleheader_held"
-		if draft.round_index==1: state="doubleheader_paid" if pending.is_empty() else "doubleheader_return_held"
-		if draft.round_index==2: state="doubleheader_pair_paid" if pending.is_empty() else "doubleheader_next_held"
-		if draft.round_index==3: state="doubleheader_next_paid" if pending.is_empty() else "doubleheader_next_return_held"
-		if draft.round_index==4: state="doubleheader_next_pair_paid"
+		var state: String="doubleheader_held" if not pending.is_empty() else ("doubleheader_paid" if draft.round_index>0 else "doubleheader_draft")
 		return {"state":state,"bytes":body.duplicate(),"picks":draft.picks.duplicate(),"offers":draft.offers(),
-			"credits":int(value.aggregate.currency),"cash":draft.cash(),"cpu_reports":pending.get("reports",[]).size(),
-			"can_shop":state in ["doubleheader_paid","doubleheader_next_paid","doubleheader_next_pair_paid"] and EarnedNamedBase.paired_shop_window(draft),
-			"can_return":state=="doubleheader_paid" and EarnedNamedBase.paired_return_ready(draft),
-			"can_next_pair":state=="doubleheader_pair_paid" and EarnedNamedBase.paired_next_opening_ready(draft),
-			"can_next_return":state=="doubleheader_next_paid" and EarnedNamedBase.paired_next_return_ready(draft),
-			"results":draft.results.duplicate(true) if draft.round_index in [1,2,3,4] else []}
+			"round":draft.round_index,"credits":int(value.aggregate.currency),"cash":draft.cash(),"cpu_reports":pending.get("reports",[]).size(),
+			"can_shop":state=="doubleheader_paid" and EarnedNamedBase.paired_shop_window(draft),
+			"can_play":EarnedNamedBase.paired_play_ready(draft),
+			"results":draft.results.duplicate(true)}
 	var view:=_installed_equipment_view(body,value,draft)
 	view.equipment_award=int(value.receipt.total)
 	if EarnedNamedBase.target(value)=="scramble":
@@ -5616,9 +5610,7 @@ static func _open_installed_doubleheader_match(app: Variant,expected: PackedByte
 	var live: SeasonState=paired.fork_live()
 	if live==null: return false
 	var leg: int=paired.round_index
-	if leg not in [0,1,2,3] or (leg==1 and not EarnedNamedBase.paired_return_ready(live)) \
-			or (leg==2 and not EarnedNamedBase.paired_next_opening_ready(live)) \
-			or (leg==3 and not EarnedNamedBase.paired_next_return_ready(live)): return false
+	if not EarnedNamedBase.paired_play_ready(live): return false
 	var opening: Dictionary=EarnedNamedBase.Paired.start(live)
 	if opening.is_empty() or opening.fixture.get("id")!=3*leg or opening.fixture.get("round")!=leg: return false
 	var state: MatchState=opening.state
@@ -5648,7 +5640,7 @@ static func _save_installed_doubleheader_managed(app: Variant,expected: PackedBy
 	return _write_installed_doubleheader_held(source,expected,candidate)
 
 static func _write_installed_doubleheader_held(source: Dictionary,expected: PackedByteArray,candidate: SeasonState) -> Dictionary:
-	if candidate==null or candidate.round_index not in [0,1,2,3] or candidate.physical.pending.is_empty(): return {}
+	if candidate==null or candidate.round_index<0 or candidate.round_index>=EarnedNamedBase.PAIRED_PAID_LIMIT or candidate.physical.pending.is_empty(): return {}
 	var rounds: Array=source.named_base.get("rounds",[])
 	return _write_installed_doubleheader_checkpoint(source,expected,candidate,rounds)
 
@@ -5682,7 +5674,7 @@ static func open_installed_dugout_d1_match(app: Variant) -> bool:
 	if not is_instance_valid(app) or app.get_script()!=load("res://src/presentation/season/successor_dynasty_owner_v1/app.gd") \
 			or app.career_owner!=null or app.season!=null or is_instance_valid(app.lab): return false
 	var expected: PackedByteArray=app.saved_bytes
-	if app.installed_dugout_d1_draft.get("state") in ["doubleheader_draft","doubleheader_paid","doubleheader_pair_paid","doubleheader_next_paid"]:
+	if app.installed_dugout_d1_draft.get("state") in ["doubleheader_draft","doubleheader_paid"]:
 		return _open_installed_doubleheader_match(app,expected)
 	if app.installed_dugout_d1_draft.get("state") in ["equipment_draft","equipment_paid","earnings_draft","earnings_paid","scramble_draft","scramble_paid"]:
 		return _open_installed_equipment_match(app,expected)
@@ -5904,7 +5896,7 @@ static func _installed_dugout_d1_pending(expected: PackedByteArray) -> Dictionar
 		var draft: SeasonState=source_equipment.draft
 		if source_equipment.has("named_base") and EarnedNamedBase.target(source_equipment.named_base)=="doubleheader":
 			var leg: int=draft.round_index
-			if leg not in [0,1,2,3] or draft.physical.pending.is_empty(): return {}
+			if leg<0 or leg>=EarnedNamedBase.PAIRED_PAID_LIMIT or draft.physical.pending.is_empty(): return {}
 			var pending: Dictionary=draft.physical.pending
 			var next:=EarnedNamedBase.Paired.next_npc_fixture(draft)
 			if next.is_empty()!=(pending.reports.size()==2) or pending.human[0]!=3*leg: return {}
@@ -5949,7 +5941,7 @@ static func _installed_dugout_d1_project_pending(session: SeasonState) -> Dictio
 static func _installed_dugout_d1_round_app(app: Variant) -> bool:
 	return is_instance_valid(app) and app.get_script()==load("res://src/presentation/season/successor_dynasty_owner_v1/app.gd") \
 		and app.career_owner==null and app.season==null and not is_instance_valid(app.lab) \
-		and app.installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","final_unpaid","dynasty_pending","equipment_held","earnings_held","scramble_held","doubleheader_held","doubleheader_return_held","doubleheader_next_held","doubleheader_next_return_held"]
+		and app.installed_dugout_d1_draft.get("state") in ["unpaid","semifinal_unpaid","final_unpaid","dynasty_pending","equipment_held","earnings_held","scramble_held","doubleheader_held"]
 
 # Only the actual OrdinaryRunner's completion for the projected fixture can
 # append one receipt. No score/fixture selector or fallback save is exposed.
@@ -6256,7 +6248,7 @@ static func settle_installed_dugout_d1_round(app: Variant) -> Dictionary:
 		var source: SeasonState=round_plan.session
 		var settled: Array=round_plan.source.named_base.get("rounds",[]).duplicate(true)
 		var leg: int=source.round_index
-		if leg not in [0,1,2,3] or settled.size()!=leg or round_plan.count!=2: return {}
+		if leg<0 or leg>=EarnedNamedBase.PAIRED_PAID_LIMIT or settled.size()!=leg or round_plan.count!=2: return {}
 		var paid: SeasonState=EarnedNamedBase.Paired.materialize_settlement(source,leg)
 		if paid==null or paid.round_index!=leg+1 or not EarnedNamedBase._paired_current(paid): return {}
 		settled.append({"pending":source.physical.pending.duplicate(true),"shop":[]})
@@ -6339,7 +6331,7 @@ static func _installed_dugout_d1_entry_app(app: Variant) -> bool:
 
 static func _installed_dugout_d1_shop_app(app: Variant) -> bool:
 	return _installed_dugout_d1_entry_app(app) \
-		and app.installed_dugout_d1_draft.get("state") in ["paid","dynasty_paid","dynasty_postseason_ready","equipment_paid","earnings_paid","scramble_paid","doubleheader_paid","doubleheader_next_paid","doubleheader_next_pair_paid"]
+		and app.installed_dugout_d1_draft.get("state") in ["paid","dynasty_paid","dynasty_postseason_ready","equipment_paid","earnings_paid","scramble_paid","doubleheader_paid"]
 
 static func _installed_dugout_d1_shop_view(view: Dictionary) -> Dictionary:
 	if view.is_empty(): return {}
@@ -6384,7 +6376,7 @@ static func _write_installed_dugout_d1_shop(shop_source: Dictionary,expected: Pa
 		var prior: Dictionary=source.named_base
 		var rounds: Array=prior.rounds.duplicate(true)
 		var paid_count: int=shop_source.session.round_index
-		if paid_count not in [1,3,4] or rounds.size()!=paid_count or rounds.back().shop.size()>=128: return {}
+		if paid_count<1 or paid_count>EarnedNamedBase.PAIRED_PAID_LIMIT or rounds.size()!=paid_count or rounds.back().shop.size()>=128: return {}
 		var candidate:=EarnedNamedBase.paired_shop_step(shop_source.session,command)
 		if candidate==null: return {}
 		var after:=EarnedNamedBase.capture_current(prior,candidate)

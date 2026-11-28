@@ -637,16 +637,13 @@ func _display_standard_record(history: Dictionary) -> void:
 func _installed_dugout_d1() -> void:
 	var draft: Dictionary=app.installed_dugout_d1_draft
 	var lane: String=draft.get("state","")
-	if lane in ["doubleheader_draft","doubleheader_held","doubleheader_paid","doubleheader_return_held",
-			"doubleheader_pair_paid","doubleheader_next_held","doubleheader_next_paid","doubleheader_next_return_held","doubleheader_next_pair_paid"]:
-		var label: String="DOUBLEHEADER BASE · DRAFT %d / 4"%draft.picks.size() if draft.picks.size()<4 else "DOUBLEHEADER BASE · PAIR 1, GAME 1"
+	if lane in ["doubleheader_draft","doubleheader_held","doubleheader_paid"]:
+		var round_index: int=int(draft.round)
+		var shown: int=round_index-1 if lane=="doubleheader_paid" else round_index
+		var label: String="DOUBLEHEADER BASE · PAIR %d, GAME %d"%[floori(shown/2.0)+1,shown%2+1]
 		if lane=="doubleheader_paid": label+=" PAID"
-		if lane=="doubleheader_return_held": label="DOUBLEHEADER BASE · PAIR 1, GAME 2"
-		if lane=="doubleheader_pair_paid": label="DOUBLEHEADER BASE · PAIR 1 COMPLETE"
-		if lane in ["doubleheader_next_held","doubleheader_next_paid"]:
-			label="DOUBLEHEADER BASE · PAIR 2, GAME 1"+(" PAID" if lane=="doubleheader_next_paid" else "")
-		if lane in ["doubleheader_next_return_held","doubleheader_next_pair_paid"]:
-			label="DOUBLEHEADER BASE · PAIR 2, GAME 2"+(" PAID" if lane=="doubleheader_next_pair_paid" else "")
+		if lane=="doubleheader_draft" and draft.picks.size()<4:
+			label="DOUBLEHEADER BASE · DRAFT %d / 4"%draft.picks.size()
 		_label(_body,label,24)
 		_note("Dugout Base and D1 titles kept · %d Club Credits · %d Season Cash"%[draft.credits,draft.cash])
 		_note("Each pair has two games. Pitching workload carries by player into the second game.")
@@ -656,7 +653,7 @@ func _installed_dugout_d1() -> void:
 		for id: String in draft.offers:
 			var player: PlayerDefinition=ContentDB.get_player(StringName(id))
 			_bound_button(_body,player.display_name if player!=null else id,Callable(app,"pick_installed_named_base").bind(id,draft.bytes.duplicate()))
-		if lane in ["doubleheader_held","doubleheader_return_held","doubleheader_next_held","doubleheader_next_return_held"]:
+		if lane=="doubleheader_held":
 			_note("The club game is saved. Results have not been paid.")
 			if app.installed_dugout_d1_cpu_running():
 				_note("Playing CPU game %d of 2…"%int(draft.cpu_reports+1))
@@ -664,21 +661,14 @@ func _installed_dugout_d1() -> void:
 			elif draft.cpu_reports<2:
 				_bound_button(_body,"PLAY CPU GAME %d OF 2"%int(draft.cpu_reports+1),Callable(app,"play_installed_dugout_d1_cpu").bind(draft.bytes.duplicate()))
 			else:
-				_bound_button(_body,"SETTLE GAME 2" if lane in ["doubleheader_return_held","doubleheader_next_return_held"] else "SETTLE GAME 1",
-					Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))
-		elif lane in ["doubleheader_paid","doubleheader_pair_paid","doubleheader_next_paid","doubleheader_next_pair_paid"]:
-			if draft.can_next_return:
-				_bound_button(_body,"PLAY PAIR 2, GAME 2",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
-			if draft.can_next_pair:
-				_bound_button(_body,"PLAY PAIR 2, GAME 1",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
-			if draft.can_return:
-				_bound_button(_body,"PLAY GAME 2",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
+				_bound_button(_body,"SETTLE GAME %d"%(round_index%2+1),Callable(app,"settle_installed_dugout_d1").bind(draft.bytes.duplicate()))
+		else:
+			if draft.can_play:
+				_bound_button(_body,"PLAY PAIR %d, GAME %d"%[floori(round_index/2.0)+1,round_index%2+1],Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 			if draft.can_shop:
 				_bound_button(_body,"OPEN SHOP",Callable(app,"open_installed_dugout_d1_shop").bind(draft.bytes.duplicate()))
 			for row: Dictionary in draft.results:
 				_note("%d–%d · %s at %s"%[int(row.away_runs),int(row.home_runs),SeasonState.TEAM_NAMES[int(row.away)],SeasonState.TEAM_NAMES[int(row.home)]])
-		elif draft.picks.size()==4:
-			_bound_button(_body,"PLAY GAME 1",Callable(app,"play_installed_dugout_d1").bind(draft.bytes.duplicate()))
 		return
 	if lane in ["equipment_draft","equipment_held","equipment_paid","earnings_draft","earnings_held","earnings_paid",
 			"scramble_draft","scramble_held","scramble_paid"]:
