@@ -164,12 +164,11 @@ static func _runtime_context(season: SeasonState, d1: bool=false) -> bool:
 	if paired_earned and (not OS.has_feature("wiffaltro_catalog_forward_v1") or not Admissions.paired_draft_only(season)): return false
 	if Admissions.paired_draft_only(season):
 		if (season.career.start_basis.get("kind")==CommonStart.KIND and not paired_earned) or not season.ownership._events.is_empty(): return false
-		# The installed owner may settle the first pair. The exact fixture,
-		# original pair verifier and wallet replay still own the evidence.
+		# The installed owner may hold the opening of the next pair. The
+		# exact authored fixture and original replay still own the evidence.
 		if paired_earned and season.get_script()==Runtime and (season.round_index not in [0,1,2] \
 				or (season.round_index==0 and not season.physical.reports.is_empty()) \
 				or (season.round_index==1 and not season.physical.pending.is_empty() and not return_session_ready(season)) \
-				or (season.round_index==2 and not season.physical.pending.is_empty()) \
 				or not season.physical.needed.is_empty() or season.physical.projecting): return false
 		if season.round_index==10:
 			if not (_completed_postseason_shape(season) if season.phase==SeasonState.Phase.COMPLETE else _semifinal_checkpoint_shape(season)): return false
@@ -278,6 +277,15 @@ static func _earned_pair_settled_journal(build: SeasonBuild) -> bool:
 	return reward.get("op")=="successor_reward" and reward.get("id")=="game:3" \
 		and admission.get("op")=="exotic_admit" and admission.get("id")=="exotic:3" \
 		and keys(bank,["0","3"]) and bank["0"] is bool and bank["3"] is bool
+
+# Enter a fresh pair from either the original test dialects or a fully
+# replayed earned first pair with a lawful, arbitrary Visit 1 journal.
+static func next_first_session_ready(season: SeasonState) -> bool:
+	if season==null or season.round_index!=2 or season.career==null or season.build==null: return false
+	if CommonStart.detached_earned_doubleheader(season.career.start_basis):
+		return OS.has_feature("wiffaltro_catalog_forward_v1") and _earned_pair_settled_journal(season.build) \
+			and not season.build.pack_pending()
+	return _paid_pair_journal(season.build,2) or not unpurchased_next_pair_kind(season).is_empty()
 
 # Derive the optional no-spend start from the authenticated journal, not a
 # shifted paid revision. Geometry still comes from the authored schedule.

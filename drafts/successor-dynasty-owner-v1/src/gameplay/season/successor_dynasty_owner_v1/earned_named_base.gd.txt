@@ -182,7 +182,7 @@ static func _paired_current(session: SeasonState) -> bool:
 	if _paired_opening(session): return true
 	if session!=null and session.round_index==2:
 		return session.career!=null and Paired.Live.CommonStart.detached_earned_doubleheader(session.career.start_basis) \
-			and session.physical.pending.is_empty() and Paired.Live.scope(session)
+			and Paired.Live.scope(session)
 	if session==null or session.career==null or session.phase!=SeasonState.Phase.REGULAR \
 			or session.round_index!=1 or session.results.size()!=3 or session.player_results.size()!=1 \
 			or session.physical.reports.size()!=2: return false
@@ -201,6 +201,11 @@ static func paired_shop_window(session: SeasonState) -> bool:
 static func paired_return_ready(session: SeasonState) -> bool:
 	return paired_shop_window(session) and Paired.Live.return_session_ready(session) \
 		and session.pending_fixture().get("id")==3
+
+static func paired_next_opening_ready(session: SeasonState) -> bool:
+	return session!=null and session.round_index==2 and _paired_current(session) \
+		and session.physical.pending.is_empty() and Paired.Live.next_first_session_ready(session) \
+		and session.pending_fixture().get("id")==6
 
 static func paired_shop_step(previous: SeasonState,command: Dictionary) -> SeasonState:
 	if not paired_shop_window(previous) or not Archive.C.primitive(command) \
@@ -285,16 +290,16 @@ static func local_draft(value: Variant, live: bool=false) -> SeasonState:
 			or Life.digest(basis)!=value.offer.get("basis_sha256"): return null
 	return session
 
-# Game 2 signs the persisted Game 1 and Shop state. Only the independently
+# The next fixture signs the persisted paid state. Only the independently
 # replayed prefix may cross the same native JSON boundary as live play.
-static func _paired_return_native_prefix(draft: SeasonState) -> SeasonState:
-	if not paired_return_ready(draft): return null
+static func _paired_native_prefix(draft: SeasonState) -> SeasonState:
+	if not paired_return_ready(draft) and not paired_next_opening_ready(draft): return null
 	var api:=Archive._owner()
 	var prefix: Dictionary=api.Adapter.Ordinary.capture(draft)
 	var native: Variant=api._bytes_value(JSON.stringify(prefix,"",true,true).to_utf8_buffer())
 	if prefix.is_empty() or not Archive.C.same(prefix,native): return null
 	var ready: SeasonState=api.Adapter.Ordinary.restore_common(native)
-	return ready if paired_return_ready(ready) else null
+	return ready if paired_return_ready(ready) or paired_next_opening_ready(ready) else null
 
 # Re-derive both proven seasons and the exact close, then the draft and its
 # original picks. The supplied title, aggregate and page are never authority.
@@ -345,7 +350,7 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 		var leg: int=draft.round_index
 		if paired and leg==1:
 			if not row.shop.is_empty(): return {}
-			draft=_paired_return_native_prefix(draft)
+			draft=_paired_native_prefix(draft)
 			if draft==null: return {}
 		draft.physical.pending=row.pending.duplicate(true)
 		if paired:
@@ -371,8 +376,8 @@ static func replay(value: Variant, pages: Array) -> Dictionary:
 	var physical: Variant=value.current.get("physical")
 	if not physical is Dictionary or not physical.get("pending") is Dictionary: return {}
 	if not physical.pending.is_empty():
-		if paired and draft.round_index==1:
-			draft=_paired_return_native_prefix(draft)
+		if paired and draft.round_index in [1,2]:
+			draft=_paired_native_prefix(draft)
 			if draft==null: return {}
 		draft.physical.pending=physical.pending.duplicate(true)
 		if not paired and Equipment.pending_plan(draft,true).is_empty(): return {}
